@@ -1,4 +1,4 @@
-import { fonts } from '@/constants/theme'
+import { colors, fonts } from '@/constants/theme'
 import { StyleProp, TouchableOpacity, ViewStyle } from 'react-native'
 import AppText from './AppText'
 
@@ -25,8 +25,8 @@ export default function Button({
       disabled={disabled}
       style={[
         {
-          backgroundColor: variant === 'fill' ? '#111' : 'transparent',
-          borderColor: '#111',
+          backgroundColor: variant === 'fill' ? colors.primary : 'transparent',
+          borderColor: colors.primary,
           borderWidth: 1,
           width: fullWidth ? '100%' : 'auto',
           justifyContent: 'center',
@@ -41,7 +41,7 @@ export default function Button({
     >
       <AppText
         style={{
-          color: variant === 'fill' ? '#fff' : '#111',
+          color: variant === 'fill' ? '#fff' : colors.primary,
           fontSize: fonts.size.md,
         }}
       >

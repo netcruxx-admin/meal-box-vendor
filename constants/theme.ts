@@ -11,7 +11,8 @@ const tintColorDark = '#fff';
 export const colors = {
   text: '#111',
   background: '#fff',
-  primary: '#eeaf10',
+  // primary: '#eeaf10',
+  primary: '#1C4ED8',
   error: '#992222',
 }
 

@@ -1,5 +1,7 @@
+import AppText from '@/components/AppText';
 import Button from '@/components/Button';
 import GoBack from '@/components/GoBack';
+import { colors } from '@/constants/theme';
 import { useRegisterMutation } from '@/services/authApi';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -42,13 +44,29 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.form_container}>
-                <Text style={styles.title}>Register</Text>
+
+                <View style={styles.avatarContainer}>
+                    <Text style={styles.avatarEmoji}>🍱</Text>
+                </View>
+
+                <View style={styles.header}>
+                    <AppText type="title">
+                        Become a Vendor
+                    </AppText>
+
+                    <AppText type="subTitle">
+                        Start selling your tiffin services with us
+                    </AppText>
+                </View>
+                <AppText style={styles.label}>Full Name</AppText>
                 <TextInput
                     placeholder="Full Name"
                     value={name}
                     onChangeText={setName}
                     style={styles.input}
                 />
+                <AppText style={styles.label}>Phone</AppText>
+
                 <TextInput
                     value={phone}
                     onChangeText={setPhone}
@@ -56,6 +74,8 @@ export default function RegisterScreen() {
                     placeholder="Phone"
                     keyboardType="phone-pad"
                 />
+                <AppText style={styles.label}>Password</AppText>
+
                 <TextInput
                     placeholder="Password"
                     value={password}
@@ -74,7 +94,7 @@ export default function RegisterScreen() {
 
                 <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
                     <Text style={styles.linkText}>
-                        Already have an account? Login
+                        Already have an account? <Text style={styles.link}>Login</Text>
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -93,11 +113,30 @@ const styles = StyleSheet.create({
         padding: 14,
         justifyContent: 'center',
     },
-    title: {
-        fontSize: 28,
-        fontWeight: '700',
+    avatarContainer: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: '#E8F0FF',
+        alignSelf: 'center',
+        justifyContent: 'center',
+        alignItems: 'center',
         marginBottom: 24,
-        textAlign: 'center',
+    },
+
+    avatarEmoji: {
+        fontSize: 48,
+    },
+    header: {
+        width: '100%',
+        alignItems: 'center',
+        marginBottom: 40
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 6,
+        color: '#111',
     },
     input: {
         borderWidth: 1,
@@ -109,7 +148,13 @@ const styles = StyleSheet.create({
     },
     linkText: {
         textAlign: 'center',
-        marginTop: 16,
+        marginTop: 18,
+        fontSize: 14,
         color: '#555',
+    },
+
+    link: {
+        color: colors.primary,
+        fontWeight: '600',
     },
 });

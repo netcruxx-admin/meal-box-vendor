@@ -1,5 +1,7 @@
+import AppText from '@/components/AppText';
 import Button from '@/components/Button';
 import GoBack from '@/components/GoBack';
+import { colors } from '@/constants/theme';
 import { useLoginMutation } from '@/services/authApi';
 import { saveToken } from '@/utils/authStorage';
 import { useRouter } from 'expo-router';
@@ -40,20 +42,36 @@ export default function LoginScreen() {
         <GoBack />
       </View>
       <View style={styles.form_container}>
-        <Text style={styles.title}>Login</Text>
 
+        <View style={styles.avatarContainer}>
+          <Text style={styles.avatarEmoji}>👨‍🍳</Text>
+        </View>
+
+        <View style={styles.header}>
+          <AppText type="title">
+            Vendor Portal
+          </AppText>
+
+          <AppText type="subTitle">
+            Manage your tiffin business
+          </AppText>
+        </View>
+
+        {/* Email */}
+        <AppText style={styles.label}>Email</AppText>
         <TextInput
           value={phone}
           onChangeText={setPhone}
           style={styles.input}
           autoCapitalize="none"
-          placeholder="Phone"
-          keyboardType="phone-pad"
-
+          placeholder="vendor@email.com"
+          keyboardType="email-address"
         />
 
+        {/* Password */}
+        <AppText style={styles.label}>Password</AppText>
         <TextInput
-          placeholder="Password"
+          placeholder="••••••••"
           value={password}
           onChangeText={setPassword}
           style={styles.input}
@@ -69,7 +87,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
           <Text style={styles.linkText}>
-            Don’t have an account? Register
+            Don&apos;t have an account? <Text style={styles.link}>Register</Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -89,11 +107,30 @@ const styles = StyleSheet.create({
     padding: 14,
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
+  avatarContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#E8F0FF',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 24,
-    textAlign: 'center',
+  },
+
+  avatarEmoji: {
+    fontSize: 48,
+  },
+  header: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 40
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    color: '#111',
   },
   input: {
     borderWidth: 1,
@@ -105,7 +142,13 @@ const styles = StyleSheet.create({
   },
   linkText: {
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 18,
+    fontSize: 14,
     color: '#555',
+  },
+
+  link: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
