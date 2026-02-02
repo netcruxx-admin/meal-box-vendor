@@ -120,22 +120,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  addDayBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1d4ed8",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    gap: 4,
-  },
-
-  addDayText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "500",
-  },
-
   dayTabs: {
     paddingHorizontal: 16,
     gap: 10,
@@ -165,58 +149,6 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     gap: 16,
-  },
-
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-
-  editText: {
-    fontSize: 13,
-    color: "#2563eb",
-  },
-
-  cardBody: {
-    backgroundColor: "#f9fafb",
-    padding: 10,
-    borderRadius: 6,
-    gap: 4,
-  },
-
-  itemText: {
-    fontSize: 13,
-    color: "#111827",
-  },
-
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-
-  timeText: {
-    fontSize: 12,
-    color: "#374151",
-  },
-
-  priceText: {
-    fontSize: 14,
-    fontWeight: "600",
   },
 
   footer: {
