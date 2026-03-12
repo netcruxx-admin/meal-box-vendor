@@ -1,10 +1,11 @@
 import React from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles } from "./styles";
-import StatsCard from "./components/StatsCard";
-import ActionItem from "./components/ActionItem";
-import BottomTab from "./components/BottomTab";
+import StatsCard from "@/components/StatsCard";
+import ActionItem from "@/components/ActionItem";
+import BottomTab from "@/components/BottomTab";
+// import { styles } from "./styles";
+
 
 export default function VendorDashboardScreen() {
   return (

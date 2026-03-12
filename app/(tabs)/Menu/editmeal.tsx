@@ -65,8 +65,17 @@ const EditBreakfast = () => {
         'getWeeklyMenu',
         undefined,
         (draft: any) => {
-          if (!draft.menu[day]) draft.menu[day] = {};
+          // 🔥 If no menu exists yet, create structure
+          if (!draft.menu) {
+            draft.menu = {};
+          }
+  
+          if (!draft.menu[day]) {
+            draft.menu[day] = {};
+          }
+  
           draft.menu[day][meal] = {
+            mealName,
             items: menuItems.filter(Boolean),
             deliveryTime: {
               start: startTime,
@@ -77,7 +86,7 @@ const EditBreakfast = () => {
         }
       )
     );
-
+  
     router.back();
   };
 
@@ -86,108 +95,6 @@ const EditBreakfast = () => {
   };
 
   return (
-    // <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-    //   {/* Header */}
-    //   <View style={styles.header}>
-    //     <Ionicons name="arrow-back" size={22} color="#000" />
-
-    //     <View>
-    //       <Text style={styles.title}>Edit Breakfast</Text>
-    //       <Text style={styles.subTitle}>Monday</Text>
-    //     </View>
-    //   </View>
-
-    //   {/* Meal Name */}
-    //   <Text style={styles.label}>Meal Name</Text>
-    //   <TextInput
-    //     style={styles.input}
-    //     value={mealName}
-    //     onChangeText={setMealName}
-    //   />
-
-    //   {/* Menu Items */}
-    //   <Text style={styles.label}>Menu Items</Text>
-    //   {menuItems.map((item, index) => (
-    //     <View key={index} style={styles.menuRow}>
-    //       <TextInput
-    //         style={[styles.input, { flex: 1 }]}
-    //         value={item}
-    //         onChangeText={(text) => {
-    //           const updated = [...menuItems];
-    //           updated[index] = text;
-    //           setMenuItems(updated);
-    //         }}
-    //       />
-    //       <TouchableOpacity
-    //         style={styles.removeBtn}
-    //         onPress={() => removeItem(index)}
-    //       >
-    //         <Ionicons name="close" size={18} color="#FF4D4F" />
-    //       </TouchableOpacity>
-    //     </View>
-    //   ))}
-
-    //   <TouchableOpacity style={styles.addBtn} onPress={addItem}>
-    //     <Text style={styles.addText}>+ Add Item</Text>
-    //   </TouchableOpacity>
-
-    //   {/* Price & Calories */}
-    //   <View style={styles.row}>
-    //     <View style={{ flex: 1 }}>
-    //       <Text style={styles.label}>Price</Text>
-    //       <TextInput
-    //         style={styles.input}
-    //         value={`₹${price}`}
-    //         onChangeText={(v) => setPrice(v.replace("₹", ""))}
-    //         keyboardType="numeric"
-    //       />
-    //     </View>
-
-    //     <View style={{ flex: 1 }}>
-    //       <Text style={styles.label}>Calories</Text>
-    //       <TextInput
-    //         style={styles.input}
-    //         value={calories}
-    //         onChangeText={setCalories}
-    //         keyboardType="numeric"
-    //       />
-    //     </View>
-    //   </View>
-
-    //   {/* Delivery Time */}
-    //   <Text style={styles.label}>Delivery Time</Text>
-    //   <View style={styles.row}>
-    //     <View style={styles.timeInput}>
-    //       <Text>{startTime}</Text>
-    //       <Ionicons name="time-outline" size={18} color="#666" />
-    //     </View>
-
-    //     <View style={styles.timeInput}>
-    //       <TextInput style={styles.input}>{endTime}</TextInput>
-    //       <Ionicons name="time-outline" size={18} color="#666" />
-    //     </View>
-    //   </View>
-
-    //   {/* Description */}
-    //   <Text style={styles.label}>Description</Text>
-    //   <TextInput
-    //     style={[styles.input, styles.textArea]}
-    //     value={description}
-    //     onChangeText={setDescription}
-    //     multiline
-    //   />
-
-    //   {/* Actions */}
-    //   <View style={styles.footer}>
-    //     <TouchableOpacity style={styles.cancelBtn}>
-    //       <Text style={styles.cancelText}>Cancel</Text>
-    //     </TouchableOpacity>
-
-    //     <TouchableOpacity style={styles.saveBtn}>
-    //       <Text style={styles.saveText}>Save</Text>
-    //     </TouchableOpacity>
-    //   </View>
-    // </ScrollView>
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
@@ -206,12 +113,12 @@ const EditBreakfast = () => {
       </View>
 
       <Text style={styles.label}>Meal Name</Text>
-<TextInput
-  style={styles.input}
-  placeholder="e.g. Monday Special Breakfast"
-  value={mealName}
-  onChangeText={setMealName}
-/>
+      <TextInput
+        style={styles.input}
+        placeholder="e.g. Monday Special Breakfast"
+        value={mealName}
+        onChangeText={setMealName}
+      />
 
       {/* Menu Items */}
       <Text style={styles.label}>Menu Items</Text>
