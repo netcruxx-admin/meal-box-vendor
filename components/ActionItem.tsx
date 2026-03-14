@@ -2,9 +2,9 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet } from "react-native";
 
-export default function ActionItem({ icon, title, color }: any) {
+export default function ActionItem({ icon, title, color, onPress }: any) {
   return (
-    <TouchableOpacity style={styles.actionCard}>
+    <TouchableOpacity style={styles.actionCard} onPress={onPress}>
       <View style={[styles.actionIcon, { backgroundColor: color }]}>
         <Ionicons name={icon} size={20} />
       </View>
@@ -22,6 +22,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   actionIcon: {
     width: 40,

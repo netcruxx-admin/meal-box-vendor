@@ -12,6 +12,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import MealCard from "@/components/MealCard";
 import { useGetWeeklyMenuQuery, useSaveWeeklyMenuMutation } from "@/services/vendorMenuApi";
 import Button from "@/components/Button";
+import GoBack from "@/components/GoBack";
+import Toast from "react-native-toast-message";
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const MEALS = ['breakfast', 'lunch', 'dinner'];
@@ -27,8 +29,28 @@ export default function WeeklyScreen() {
   const dayMenu = menu?.[dayKey];
 
   const handleSave = async () => {
-    await saveMenu(menu).unwrap();
-    alert('Menu saved');
+    if (!menu) return;
+    // Only send day keys — exclude MongoDB metadata (_id, vendor, __v, etc.)
+    const menuToSave: Record<string, any> = {};
+    DAYS.forEach((d) => {
+      menuToSave[d.toLowerCase()] = menu[d.toLowerCase()];
+    });
+    try {
+      await saveMenu(menuToSave).unwrap();
+      Toast.show({
+        type: 'success',
+        text1: 'Saved!',
+        text2: 'Menu saved successfully.',
+        visibilityTime: 2500,
+      });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Save Failed',
+        text2: 'Failed to save menu. Please try again.',
+        visibilityTime: 3000,
+      });
+    }
   };
 
   if (isLoading) {
@@ -38,13 +60,9 @@ export default function WeeklyScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity>
-          <Ionicons name="arrow-back" size={22} />
-        </TouchableOpacity>
-
+        <GoBack />
         <Text style={styles.headerTitle}>Weekly Menu</Text>
       </View>
-
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -67,7 +85,7 @@ export default function WeeklyScreen() {
       </ScrollView>
 
       {/* Meals */}
-      <View>
+      <View style={{ padding: 16, gap: 4 }}>
         {MEALS.map((meal) => {
           const mealData = dayMenu?.[meal];
           return (

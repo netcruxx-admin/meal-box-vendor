@@ -1,120 +1,141 @@
-import AppText from "@/components/AppText";
-import Button from "@/components/Button";
-import { useGetProfileQuery } from "@/services/userApi";
-import { removeToken } from "@/utils/authStorage";
-import { useRouter } from "expo-router";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, Text, View, FlatList, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type ApiError = {
-  message?: string;
+// Placeholder order type — replace with real API data when ready
+type Order = {
+  id: string;
+  customerName: string;
+  meal: string;
+  status: "pending" | "preparing" | "delivered";
+  date: string;
+};
+
+const STATUS_COLOR: Record<Order["status"], string> = {
+  pending: "#F59E0B",
+  preparing: "#3B82F6",
+  delivered: "#10B981",
 };
 
 export default function OrdersScreen() {
-  const router = useRouter();
-  const { data, isLoading, error } = useGetProfileQuery(undefined);
+  // Replace with useGetOrdersQuery() when the API is ready
+  const orders: Order[] = [];
 
-  const vendor = data?.vendor;
-  const user = vendor?.user;
-
-  const handleLogout = async () => {
-    await removeToken();
-    router.replace("/welcome");
-  };
-
-  if (isLoading) {
+  if (orders.length === 0) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.heading}>Orders</Text>
+        <View style={styles.emptyContainer}>
+          <Ionicons name="receipt-outline" size={60} color="#CBD5E1" />
+          <Text style={styles.emptyText}>No orders yet</Text>
+          <Text style={styles.emptySubText}>
+            New customer orders will appear here
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  const isApiError = (error: unknown): error is { data: ApiError } => {
-    return typeof error === "object" && error !== null && "data" in error;
-  };
-
-  if (isApiError(error) && error.data?.message === "Vendor profile not found") {
-    router.replace("/(tabs)/Profile/EditProfileScreen");
-    return null;
-  }
-
-  // if (error) {
-  //   return (
-  //     <View style={styles.center}>
-  //       <Text>Failed to load profile</Text>
-  //     </View>
-  //   );
-  // }
-
   return (
     <SafeAreaView style={styles.container}>
-      <View>
-        <AppText type="subTitle">Profile</AppText>
-
-        {/* User Info */}
-        <View style={styles.section}>
-          <AppText>{vendor?.businessName}</AppText>
-          <AppText>Owner: {user?.name}</AppText>
-          <AppText>+91 {user?.phone}</AppText>
-        </View>
-
-        <View style={styles.section}>
-          <AppText type="subTitle">About Business</AppText>
-          <AppText>{vendor?.description || "No description added"}</AppText>
-        </View>
-
-        {/* Future Address Section */}
-        <View style={styles.section}>
-          <AppText type="subTitle">Business Address</AppText>
-          {vendor?.address ? (
-            <AppText>
-              {vendor.address.line1}
-              {"\n"}
-              {vendor.address.city}, {vendor.address.state}{" "}
-              {vendor.address.pincode}
-            </AppText>
-          ) : (
-            <AppText>No address added</AppText>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Edit Profile"
-          variant="outline"
-          fullWidth
-          onPress={() => router.push("/(tabs)/Profile/EditProfileScreen")}
-        />
-        <Button
-          title="Logout"
-          variant="fill"
-          fullWidth
-          onPress={handleLogout}
-        />
-      </View>
+      <Text style={styles.heading}>Orders</Text>
+      <FlatList
+        data={orders}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.card}>
+            <View style={styles.cardRow}>
+              <Text style={styles.customerName}>{item.customerName}</Text>
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: STATUS_COLOR[item.status] + "20" },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.badgeText,
+                    { color: STATUS_COLOR[item.status] },
+                  ]}
+                >
+                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.mealText}>{item.meal}</Text>
+            <Text style={styles.dateText}>{item.date}</Text>
+          </TouchableOpacity>
+        )}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    backgroundColor: "#fff",
     flex: 1,
-    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
   },
-  section: {
-    marginBottom: 18,
+  heading: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginTop: 12,
+    marginBottom: 16,
+    color: "#111",
   },
-  center: {
+  emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    gap: 8,
   },
-  buttonContainer: {
-    gap: 10,
-    flexDirection: "column",
+  emptyText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#94A3B8",
+    marginTop: 12,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: "#CBD5E1",
+    textAlign: "center",
+  },
+  card: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+  },
+  cardRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  mealText: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 4,
+  },
+  dateText: {
+    fontSize: 12,
+    color: "#94A3B8",
   },
 });

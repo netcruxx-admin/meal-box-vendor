@@ -58,14 +58,14 @@ export default function LoginScreen() {
         </View>
 
         {/* Email */}
-        <AppText style={styles.label}>Email</AppText>
+        <AppText style={styles.label}>Phone</AppText>
         <TextInput
           value={phone}
           onChangeText={setPhone}
           style={styles.input}
           autoCapitalize="none"
-          placeholder="vendor@email.com"
-          keyboardType="email-address"
+          placeholder="9876543210"
+          // keyboardType="phone"
         />
 
         {/* Password */}
