@@ -48,6 +48,7 @@ export default function ProfileScreen() {
           <AppText>{vendor?.businessName}</AppText>
           <AppText>Owner: {user?.name}</AppText>
           <AppText>+91 {user?.phone}</AppText>
+          <AppText>Food Type: {vendor?.foodType ? vendor.foodType.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('-') : ''}</AppText>
         </View>
 
         <View style={styles.section}>

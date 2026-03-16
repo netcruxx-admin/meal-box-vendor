@@ -7,9 +7,18 @@ import {
   ActivityIndicator,
   StyleSheet,
   TextInput,
+  TouchableOpacity,
   View
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+
+type FoodType = 'veg' | 'non-veg' | 'both';
+
+const FOOD_TYPE_OPTIONS: { label: string; value: FoodType; activeColor: string }[] = [
+  { label: 'Veg', value: 'veg', activeColor: '#2e7d32' },
+  { label: 'Non-Veg', value: 'non-veg', activeColor: '#c62828' },
+  { label: 'Both', value: 'both', activeColor: '#e65100' },
+];
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -23,6 +32,7 @@ export default function EditProfileScreen() {
   const [form, setForm] = useState({
     businessName: '',
     description: '',
+    foodType: 'both' as FoodType,
     address: {
       line1: '',
       line2: '',
@@ -37,6 +47,7 @@ export default function EditProfileScreen() {
       setForm({
         businessName: vendor.businessName || '',
         description: vendor.description || '',
+        foodType: (vendor.foodType as FoodType) || 'both',
         address: {
           line1: vendor.address?.line1 || '',
           line2: vendor.address?.line2 || '',
@@ -87,6 +98,7 @@ export default function EditProfileScreen() {
       await updateProfile({
         businessName: form.businessName,
         description: form.description,
+        foodType: form.foodType,
         ...(hasAddress && { address: form.address }),
       }).unwrap();
 
@@ -109,7 +121,7 @@ export default function EditProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <AppText type='title'>Edit Profile</AppText>
+      <AppText type='subTitle'>Edit Profile</AppText>
 
       <TextInput
         placeholder="Business Name"
@@ -125,7 +137,26 @@ export default function EditProfileScreen() {
         style={styles.input}
       />
 
-      <AppText type='title'>Address</AppText>
+      <AppText type='subTitle'>Food Type</AppText>
+      <View style={styles.segmentedControl}>
+        {FOOD_TYPE_OPTIONS.map((option) => {
+          const isSelected = form.foodType === option.value;
+          return (
+            <TouchableOpacity
+              key={option.value}
+              style={[styles.segment, isSelected && { backgroundColor: option.activeColor }]}
+              onPress={() => handleChange('foodType', option.value)}
+              activeOpacity={0.8}
+            >
+              <AppText style={[styles.segmentText, isSelected && styles.segmentTextSelected]}>
+                {option.label}
+              </AppText>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <AppText type='subTitle'>Address</AppText>
 
       <TextInput
         placeholder="Address Line 1"
@@ -188,5 +219,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  segmentText: {
+    fontSize: 12,
+    color: '#555',
+  },
+  segmentTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
