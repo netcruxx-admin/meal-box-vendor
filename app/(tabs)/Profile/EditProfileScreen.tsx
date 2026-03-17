@@ -5,7 +5,11 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
   View
@@ -120,92 +124,109 @@ export default function EditProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <AppText type='subTitle'>Edit Profile</AppText>
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.header}>Edit Profile</Text>
 
-      <TextInput
-        placeholder="Business Name"
-        value={form.businessName}
-        onChangeText={(v) => handleChange('businessName', v)}
-        style={styles.input}
-      />
+        <TextInput
+          placeholder="Business Name"
+          value={form.businessName}
+          onChangeText={(v) => handleChange('businessName', v)}
+          style={styles.input}
+        />
 
-      <TextInput
-        placeholder="Description"
-        value={form.description}
-        onChangeText={(v) => handleChange('description', v)}
-        style={styles.input}
-      />
+        <TextInput
+          placeholder="Description"
+          value={form.description}
+          onChangeText={(v) => handleChange('description', v)}
+          style={styles.input}
+        />
 
-      <AppText type='subTitle'>Food Type</AppText>
-      <View style={styles.segmentedControl}>
-        {FOOD_TYPE_OPTIONS.map((option) => {
-          const isSelected = form.foodType === option.value;
-          return (
-            <TouchableOpacity
-              key={option.value}
-              style={[styles.segment, isSelected && { backgroundColor: option.activeColor }]}
-              onPress={() => handleChange('foodType', option.value)}
-              activeOpacity={0.8}
-            >
-              <AppText style={[styles.segmentText, isSelected && styles.segmentTextSelected]}>
-                {option.label}
-              </AppText>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+        <Text style={styles.header}>Food Type</Text>
+        <View style={styles.segmentedControl}>
+          {FOOD_TYPE_OPTIONS.map((option) => {
+            const isSelected = form.foodType === option.value;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={[styles.segment, isSelected && { backgroundColor: option.activeColor }]}
+                onPress={() => handleChange('foodType', option.value)}
+                activeOpacity={0.8}
+              >
+                <AppText style={[styles.segmentText, isSelected && styles.segmentTextSelected]}>
+                  {option.label}
+                </AppText>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-      <AppText type='subTitle'>Address</AppText>
+        <Text style={styles.header}>Address</Text>
+        <TextInput
+          placeholder="Address Line 1"
+          value={form.address.line1}
+          onChangeText={(v) => handleAddressChange('line1', v)}
+          style={styles.input}
+        />
+        <TextInput
+          placeholder="Address Line 2"
+          value={form.address.line2}
+          onChangeText={(v) => handleAddressChange('line2', v)}
+          style={styles.input}
+        />
+        <TextInput
+          placeholder="City"
+          value={form.address.city}
+          onChangeText={(v) => handleAddressChange('city', v)}
+          style={styles.input}
+        />
+        <TextInput
+          placeholder="State"
+          value={form.address.state}
+          onChangeText={(v) => handleAddressChange('state', v)}
+          style={styles.input}
+        />
+        <TextInput
+          placeholder="Pincode"
+          value={form.address.pincode}
+          onChangeText={(v) => handleAddressChange('pincode', v)}
+          style={styles.input}
+          keyboardType="number-pad"
+        />
 
-      <TextInput
-        placeholder="Address Line 1"
-        value={form.address.line1}
-        onChangeText={(v) => handleAddressChange('line1', v)}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Address Line 2"
-        value={form.address.line2}
-        onChangeText={(v) => handleAddressChange('line2', v)}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="City"
-        value={form.address.city}
-        onChangeText={(v) => handleAddressChange('city', v)}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="State"
-        value={form.address.state}
-        onChangeText={(v) => handleAddressChange('state', v)}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Pincode"
-        value={form.address.pincode}
-        onChangeText={(v) => handleAddressChange('pincode', v)}
-        style={styles.input}
-        keyboardType="number-pad"
-      />
-
-      <Button
-        title={isUpdating ? 'Saving...' : 'Save Changes'}
-        variant="fill"
-        fullWidth
-        disabled={isUpdating}
-        onPress={handleSave}
-      />
-    </View>
+        <Button
+          title={isUpdating ? 'Saving...' : 'Save Changes'}
+          variant="fill"
+          fullWidth
+          disabled={isUpdating}
+          onPress={handleSave}
+        />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardView: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  container: {
+    flexGrow: 1,
     padding: 20,
     backgroundColor: '#fff',
+  },
+  header: {
+    fontSize: 18,
+    fontWeight: '500',
+    marginBottom: 5,
   },
   input: {
     borderWidth: 1,

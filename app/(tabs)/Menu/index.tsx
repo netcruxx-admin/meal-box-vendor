@@ -7,8 +7,6 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import MealCard from "@/components/MealCard";
 import { useGetWeeklyMenuQuery, useSaveWeeklyMenuMutation } from "@/services/vendorMenuApi";
 import Button from "@/components/Button";
@@ -65,8 +63,9 @@ export default function WeeklyScreen() {
       </View>
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={false}
+        showsHorizontalScrollIndicator={true}
         contentContainerStyle={styles.dayTabs}
+        persistentScrollbar={true}
       >
         {DAYS.map((day) => (
           <TouchableOpacity
@@ -141,6 +140,7 @@ const styles = StyleSheet.create({
   dayTabs: {
     paddingHorizontal: 16,
     gap: 10,
+    paddingBottom: 6,
   },
 
   dayChip: {

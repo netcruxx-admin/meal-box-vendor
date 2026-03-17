@@ -1,11 +1,21 @@
 import TabIcon from "@/components/TabIcon";
+import { getToken } from "@/utils/authStorage";
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
-import React from "react";
+import { Redirect, Tabs } from "expo-router";
+import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function TabLayout() {
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getToken().then((token) => setIsLoggedIn(!!token));
+  }, []);
+
+  if (isLoggedIn === null) return null;
+  if (!isLoggedIn) return <Redirect href="/welcome" />;
+
   type TabItem = {
     name: string;
     label: string;
