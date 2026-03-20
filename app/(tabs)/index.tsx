@@ -74,9 +74,9 @@ export default function HomeScreen() {
         />
         <ActionItem
           icon="cube-outline"
-          title="View Orders"
+          title="Subscriptions"
           color="#ffedd5"
-          onPress={() => router.push("/(tabs)/Orders")}
+          onPress={() => router.push("/(tabs)/Subscriptions")}
         />
       </ScrollView>
     </View>
@@ -88,12 +88,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#ffffff"
   },
-  header: {
-    backgroundColor: "#1d4ed8",
-    paddingVertical: 14,
-    alignItems: "center",
+  content: {
+    padding: 10,
   },
-  content: { padding: 16, paddingBottom: 100 },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",

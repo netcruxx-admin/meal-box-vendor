@@ -1,6 +1,5 @@
 import { colors, fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
-import Entypo from "@expo/vector-icons/Entypo";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -24,7 +23,6 @@ export default function GoBack({
     >
       <TouchableOpacity style={styles.touchable} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={22} />
-        {/* <Entypo name="chevron-left" size={24} color={colors.text} /> */}
         {/* <Text style={styles.text}>Back</Text> */}
       </TouchableOpacity>
     </View>
@@ -33,14 +31,13 @@ export default function GoBack({
 
 const styles = StyleSheet.create({
   header: {
-    paddingVertical: 10,
+    // paddingVertical: 10,
   },
   touchable: {
     display: "flex",
     flexDirection: "row",
     justifyContent: "flex-start",
     alignItems: "center",
-    gap: 4,
   },
   text: {
     fontSize: fonts.size.md,

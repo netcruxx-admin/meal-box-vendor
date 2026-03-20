@@ -12,6 +12,7 @@ import { useGetWeeklyMenuQuery, useSaveWeeklyMenuMutation } from "@/services/ven
 import Button from "@/components/Button";
 import GoBack from "@/components/GoBack";
 import Toast from "react-native-toast-message";
+import AppText from "@/components/AppText";
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const MEALS = ['breakfast', 'lunch', 'dinner'];
@@ -59,7 +60,7 @@ export default function WeeklyScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <GoBack />
-        <Text style={styles.headerTitle}>Weekly Menu</Text>
+        <AppText weight='semiBold'>Weekly Menu</AppText>
       </View>
       <ScrollView
         horizontal
@@ -84,7 +85,7 @@ export default function WeeklyScreen() {
       </ScrollView>
 
       {/* Meals */}
-      <View style={{ padding: 16, gap: 4 }}>
+      <View style={{marginTop: 20, gap: 4 }}>
         {MEALS.map((meal) => {
           const mealData = dayMenu?.[meal];
           return (
@@ -104,7 +105,6 @@ export default function WeeklyScreen() {
         })}
       </View>
 
-
       <View style={styles.footer}>
         <Button
           title="Save Changes"
@@ -121,20 +121,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
+    padding: 10,
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     gap: 12,
-  },
-
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "600",
+    marginBottom: 10
   },
 
   dayTabs: {
@@ -164,29 +158,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  content: {
-    padding: 16,
-    gap: 16,
-  },
-
   footer: {
-    padding: 16,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderColor: "#e5e7eb",
     display: "flex",
     flexDirection: "column",
-  },
-
-  saveBtn: {
-    backgroundColor: "#1d4ed8",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-
-  saveBtnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  }
 });

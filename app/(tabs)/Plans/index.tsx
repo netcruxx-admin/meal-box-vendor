@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  ScrollView,
   View,
   Text,
   TextInput,
@@ -9,10 +8,14 @@ import {
   ActivityIndicator,
   Modal,
 } from "react-native";
+import ScreenScrollView from "@/components/ScreenScrollView";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
 import { useGetPlansQuery, useUpdatePlansMutation } from "@/services/vendorPlanApi";
+import GoBack from "@/components/GoBack";
+import AppText from "@/components/AppText";
+import Button from "@/components/Button";
 
 /* ---------- Types ---------- */
 type PlanType = "full_day" | "lunch_dinner" | "lunch_only";
@@ -150,13 +153,11 @@ export default function PlansScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScreenScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Subscription Plans</Text>
+        <GoBack />
+        <AppText weight='semiBold'>Subscription Plans</AppText>
       </View>
 
       {/* Weekly Plan */}
@@ -280,14 +281,14 @@ export default function PlansScreen() {
       </View>
 
       {/* Update Button */}
-      <TouchableOpacity
-        style={[styles.cta, isUpdating && { opacity: 0.6 }]}
+      <Button
+        title={isUpdating ? "Updating..." : "Update Pricing"}
+        variant="fill"
+        fullWidth
         onPress={handleUpdate}
         disabled={isUpdating}
-      >
-        <Text style={styles.ctaText}>{isUpdating ? "Saving..." : "Update Pricing"}</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      />
+    </ScreenScrollView>
   );
 }
 
@@ -299,20 +300,14 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 16,
+    padding: 10,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 10
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#111827",
-  },
-
   /* Card */
   card: {
     backgroundColor: "#FFFFFF",
@@ -473,18 +468,4 @@ const styles = StyleSheet.create({
     color: "#2563EB",
   },
 
-  /* CTA */
-  cta: {
-    backgroundColor: "#1D4ED8",
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 32,
-    marginTop: 4,
-  },
-  ctaText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-  },
 });

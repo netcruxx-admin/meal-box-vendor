@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import Toast from "react-native-toast-message";
 import { useGetWeeklyMenuQuery, useSaveWeeklyMenuMutation } from "@/services/vendorMenuApi";
+import Button from "@/components/Button";
 
 type MealType = 'breakfast' | 'lunch' | 'dinner';
 
@@ -107,14 +108,14 @@ const EditBreakfast = () => {
     DAY_KEYS.forEach((d) => {
       updatedMenu[d] = d === day
         ? {
-            ...menuData?.[d],
-            [meal]: {
-              mealName,
-              items: menuItems.filter(Boolean),
-              deliveryTime: { start: startTime, end: endTime },
-              description,
-            },
-          }
+          ...menuData?.[d],
+          [meal]: {
+            mealName,
+            items: menuItems.filter(Boolean),
+            deliveryTime: { start: startTime, end: endTime },
+            description,
+          },
+        }
         : menuData?.[d];
     });
 
@@ -258,12 +259,20 @@ const EditBreakfast = () => {
 
       {/* Actions */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveText}>Save</Text>
-        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Button
+            title="Cancel"
+            variant="outline"
+            onPress={() => router.back()}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button
+            title="Save"
+            variant="fill"
+            onPress={handleSave}
+          />
+        </View>
       </View>
     </ScrollView>
   );
@@ -274,7 +283,7 @@ export default EditBreakfast;
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#fff",
-    padding: 16,
+    padding: 10,
   },
   header: {
     flexDirection: "row",
@@ -392,29 +401,5 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 24,
     marginBottom: 16,
-  },
-  cancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  cancelText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  saveBtn: {
-    flex: 1,
-    backgroundColor: "#1D4ED8",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  saveText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
   },
 });

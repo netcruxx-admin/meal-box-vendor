@@ -4,9 +4,11 @@ import GoBack from '@/components/GoBack';
 import { colors } from '@/constants/theme';
 import { useLoginMutation } from '@/services/authApi';
 import { saveToken } from '@/utils/authStorage';
+import { AuthErrors, hasErrors, validateLoginForm } from '@/utils/authValidation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import ErrorText from '@/components/ErrorText';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -16,14 +18,14 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<AuthErrors>({});
 
-  const [login, { isLoading, error }] = useLoginMutation();
+  const [login] = useLoginMutation();
 
   const handleLogin = async () => {
-    if (!phone || !password) {
-      Toast.show({ type: 'error', text1: 'Phone and password are required' });
-      return;
-    }
+    const validationErrors = validateLoginForm(phone, password);
+    setErrors(validationErrors);
+    if (hasErrors(validationErrors)) return;
 
     try {
       const res = await login({
@@ -63,29 +65,36 @@ export default function LoginScreen() {
               Vendor Portal
             </AppText>
 
-            <AppText type="subTitle">
+            <AppText>
               Manage your tiffin business
             </AppText>
           </View>
 
-          {/* Email */}
+          {/* Phone */}
           <AppText style={styles.label}>Phone</AppText>
           <TextInput
             value={phone}
-            onChangeText={setPhone}
-            style={styles.input}
+            onChangeText={(val) => {
+              setPhone(val);
+              setErrors(prev => ({ ...prev, phone: undefined }));
+            }}
+            style={[styles.input, errors.phone ? styles.inputError : null]}
             autoCapitalize="none"
             placeholder="9876543210"
             keyboardType="phone-pad"
           />
+          <ErrorText message={errors.phone} />
 
           {/* Password */}
           <AppText style={styles.label}>Password</AppText>
-          <View style={styles.passwordWrapper}>
+          <View style={[styles.passwordWrapper, errors.password ? styles.inputError : null]}>
             <TextInput
               placeholder="Password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(val) => {
+                setPassword(val);
+                setErrors(prev => ({ ...prev, password: undefined }));
+              }}
               style={styles.passwordInput}
               secureTextEntry={!showPassword}
             />
@@ -93,13 +102,16 @@ export default function LoginScreen() {
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color="#9ca3af" />
             </TouchableOpacity>
           </View>
+          <ErrorText message={errors.password} />
 
-          <Button
-            title="Login"
-            variant="fill"
-            fullWidth
-            onPress={handleLogin}
-          />
+          <View style={{ marginTop: 20 }}>
+            <Button
+              title="Login"
+              variant="fill"
+              fullWidth
+              onPress={handleLogin}
+            />
+          </View>
 
           <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
             <Text style={styles.linkText}>
@@ -137,7 +149,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-
   avatarEmoji: {
     fontSize: 48,
   },
@@ -157,8 +168,11 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     padding: 14,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 4,
     fontSize: 16,
+  },
+  inputError: {
+    borderColor: '#ef4444',
   },
   passwordWrapper: {
     flexDirection: 'row',
@@ -166,7 +180,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: 4,
   },
   passwordInput: {
     flex: 1,
@@ -178,11 +192,10 @@ const styles = StyleSheet.create({
   },
   linkText: {
     textAlign: 'center',
-    marginTop: 18,
+    marginTop: 10,
     fontSize: 14,
     color: '#555',
   },
-
   link: {
     color: colors.primary,
     fontWeight: '600',

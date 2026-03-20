@@ -1,5 +1,6 @@
 import AppText from '@/components/AppText';
 import Button from '@/components/Button';
+import GoBack from '@/components/GoBack';
 import { useGetProfileQuery, useUpdateProfileMutation } from '@/services/userApi';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -133,7 +134,10 @@ export default function EditProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.header}>Edit Profile</Text>
+        <View style={styles.header}>
+          <GoBack />
+          <AppText weight='semiBold'>Edit Profile</AppText>
+        </View>
 
         <TextInput
           placeholder="Business Name"
@@ -149,7 +153,8 @@ export default function EditProfileScreen() {
           style={styles.input}
         />
 
-        <Text style={styles.header}>Food Type</Text>
+
+        <AppText weight='semiBold'>Food Type</AppText>
         <View style={styles.segmentedControl}>
           {FOOD_TYPE_OPTIONS.map((option) => {
             const isSelected = form.foodType === option.value;
@@ -168,7 +173,7 @@ export default function EditProfileScreen() {
           })}
         </View>
 
-        <Text style={styles.header}>Address</Text>
+        <AppText weight='semiBold'>Address</AppText>
         <TextInput
           placeholder="Address Line 1"
           value={form.address.line1}
@@ -220,13 +225,14 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    padding: 20,
+    padding: 10,
     backgroundColor: '#fff',
   },
   header: {
-    fontSize: 18,
-    fontWeight: '500',
-    marginBottom: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 10
   },
   input: {
     borderWidth: 1,

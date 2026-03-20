@@ -28,7 +28,7 @@ export default function WelcomeScreen() {
 
             <Button
                 title="Register"
-                variant="fill"
+                variant="outline"
                 fullWidth
                 onPress={() => router.push('/(auth)/register')}
             />
@@ -37,7 +37,7 @@ export default function WelcomeScreen() {
 
             <Button
                 title="Login"
-                variant="outline"
+                variant="fill"
                 fullWidth
                 onPress={() => router.push('/(auth)/login')}
             />
