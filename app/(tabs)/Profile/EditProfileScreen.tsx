@@ -10,12 +10,13 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { isProfileComplete } from '@/utils/profileValidation';
+import InputField from '@/components/ui/InputField';
+import { Text } from '@react-navigation/elements';
 
 type FoodType = 'veg' | 'non-veg' | 'both';
 
@@ -28,11 +29,12 @@ const FOOD_TYPE_OPTIONS: { label: string; value: FoodType; activeColor: string }
 export default function EditProfileScreen() {
   const router = useRouter();
 
-  const { data, isLoading } = useGetProfileQuery(undefined);
+  const { data, isLoading, refetch } = useGetProfileQuery(undefined);
   const [updateProfile, { isLoading: isUpdating }] =
     useUpdateProfileMutation();
 
   const vendor = data?.vendor;
+  const profileIsComplete = isProfileComplete(vendor);
 
   const [form, setForm] = useState({
     businessName: '',
@@ -97,6 +99,17 @@ export default function EditProfileScreen() {
       return;
     }
 
+    // Check if all required fields are filled
+    if (!form.address.line1 || !form.address.city || !form.address.state || !form.address.pincode) {
+      Toast.show({
+        type: 'error',
+        text1: 'Validation',
+        text2: 'Please fill in all required address fields (Line 1, City, State, Pincode).',
+        visibilityTime: 3000,
+      });
+      return;
+    }
+
     const hasAddress = Object.values(form.address).some(Boolean);
 
     try {
@@ -107,13 +120,24 @@ export default function EditProfileScreen() {
         ...(hasAddress && { address: form.address }),
       }).unwrap();
 
+      // Refetch profile to get updated data
+      await refetch();
+
       Toast.show({
         type: 'success',
         text1: 'Profile Updated',
         text2: 'Vendor profile updated successfully.',
         visibilityTime: 2000,
-        onHide: () => router.back(),
       });
+
+      // Navigate after a short delay to ensure data is updated
+      setTimeout(() => {
+        if (profileIsComplete) {
+          router.back();
+        } else {
+          router.push('/(tabs)/Profile');
+        }
+      }, 2000);
     } catch (err: any) {
       Toast.show({
         type: 'error',
@@ -135,24 +159,30 @@ export default function EditProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <GoBack />
+          {profileIsComplete && <GoBack />}
           <AppText weight='semiBold'>Edit Profile</AppText>
         </View>
 
-        <TextInput
-          placeholder="Business Name"
+        {!profileIsComplete && (
+          <View style={styles.warningBox}>
+            <Text style={styles.warningText}>
+              Please complete your profile to access all features
+            </Text>
+          </View>
+        )}
+        <InputField
+          label="Business Name"
           value={form.businessName}
-          onChangeText={(v) => handleChange('businessName', v)}
-          style={styles.input}
+          onChangeText={(v: string) => handleChange('businessName', v)}
+          placeholder="Enter your business name"
         />
 
-        <TextInput
-          placeholder="Description"
+        <InputField
+          label="Description"
           value={form.description}
-          onChangeText={(v) => handleChange('description', v)}
-          style={styles.input}
+          onChangeText={(v: string) => handleChange('description', v)}
+          placeholder="Description"
         />
-
 
         <AppText weight='semiBold'>Food Type</AppText>
         <View style={styles.segmentedControl}>
@@ -165,44 +195,44 @@ export default function EditProfileScreen() {
                 onPress={() => handleChange('foodType', option.value)}
                 activeOpacity={0.8}
               >
-                <AppText style={[styles.segmentText, isSelected && styles.segmentTextSelected]}>
+                <Text style={[styles.segmentText, isSelected && styles.segmentTextSelected]}>
                   {option.label}
-                </AppText>
+                </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <AppText weight='semiBold'>Address</AppText>
-        <TextInput
-          placeholder="Address Line 1"
+        <AppText weight="semiBold">Address</AppText>
+
+        <InputField
+          label="Address Line 1"
           value={form.address.line1}
-          onChangeText={(v) => handleAddressChange('line1', v)}
-          style={styles.input}
+          onChangeText={(v: string) => handleAddressChange('line1', v)}
         />
-        <TextInput
-          placeholder="Address Line 2"
+
+        <InputField
+          label="Address Line 2 (Optional)"
           value={form.address.line2}
-          onChangeText={(v) => handleAddressChange('line2', v)}
-          style={styles.input}
+          onChangeText={(v: string) => handleAddressChange('line2', v)}
         />
-        <TextInput
-          placeholder="City"
+
+        <InputField
+          label="City"
           value={form.address.city}
-          onChangeText={(v) => handleAddressChange('city', v)}
-          style={styles.input}
+          onChangeText={(v: string) => handleAddressChange('city', v)}
         />
-        <TextInput
-          placeholder="State"
+
+        <InputField
+          label="State"
           value={form.address.state}
-          onChangeText={(v) => handleAddressChange('state', v)}
-          style={styles.input}
+          onChangeText={(v: string) => handleAddressChange('state', v)}
         />
-        <TextInput
-          placeholder="Pincode"
+
+        <InputField
+          label="Pincode"
           value={form.address.pincode}
-          onChangeText={(v) => handleAddressChange('pincode', v)}
-          style={styles.input}
+          onChangeText={(v: string) => handleAddressChange('pincode', v)}
           keyboardType="number-pad"
         />
 
@@ -262,11 +292,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   segmentText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#555',
   },
   segmentTextSelected: {
     color: '#fff',
     fontWeight: '600',
+  },
+  warningBox: {
+    backgroundColor: '#fef3c7',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 14,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f59e0b',
+  },
+  warningText: {
+    color: '#92400e',
+    fontSize: 14,
   },
 });

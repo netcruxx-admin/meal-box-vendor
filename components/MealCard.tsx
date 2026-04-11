@@ -4,6 +4,7 @@ import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 
 type MealCardProps = {
   title: string;
+  mealName: string,
   items: string[];
   time: string;
   price: string;
@@ -12,6 +13,7 @@ type MealCardProps = {
 
 export default function MealCard({
   title,
+  mealName,
   items,
   time,
   price,
@@ -29,6 +31,8 @@ export default function MealCard({
         day: day.toLowerCase(),
       },
     });
+
+  // console.log(time, 'time');
 
   return (
     <View style={[styles.card, isEmpty && styles.cardEmpty]}>
@@ -48,6 +52,7 @@ export default function MealCard({
       ) : (
         <>
           <View style={styles.cardBody}>
+            <Text>{mealName}</Text>
             {items.map((item, i) => (
               <View key={i} style={styles.itemRow}>
                 <View style={styles.dot} />

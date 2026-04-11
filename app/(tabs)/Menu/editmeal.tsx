@@ -61,6 +61,10 @@ const EditBreakfast = () => {
   const [description, setDescription] = useState('');
   const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
   const [saveMenu] = useSaveWeeklyMenuMutation();
+  const [mealNameError, setMealNameError] = useState('');
+  const [itemsError, setItemsError] = useState('');
+  const [addItemError, setAddItemError] = useState('');
+  const [itemErrorIndexes, setItemErrorIndexes] = useState<number[]>([]);
 
   useEffect(() => {
     if (mealData) {
@@ -73,17 +77,37 @@ const EditBreakfast = () => {
   }, [mealData]);
 
   /* ---------- Menu items handlers ---------- */
-  const addItem = () => setMenuItems((prev) => [...prev, '']);
+  const addItem = () => {
+    const lastIndex = menuItems.length - 1;
+    const lastItem = menuItems[lastIndex];
+    if (menuItems.length > 0 && lastItem.trim() === '') {
+      setAddItemError('Please enter the item first');
+      setItemErrorIndexes((prev) => prev.includes(lastIndex) ? prev : [...prev, lastIndex]);
+      return;
+    }
+    setAddItemError('');
+    setItemsError('');
+    setItemErrorIndexes([]);
+    setMenuItems((prev) => [...prev, '']);
+  };
 
-  const removeItem = (index: number) =>
+  const removeItem = (index: number) => {
     setMenuItems((prev) => prev.filter((_, i) => i !== index));
+    setItemErrorIndexes((prev) => prev.filter((i) => i !== index).map((i) => i > index ? i - 1 : i));
+    setAddItemError('');
+  };
 
-  const updateItem = (index: number, value: string) =>
+  const updateItem = (index: number, value: string) => {
     setMenuItems((prev) => {
       const updated = [...prev];
       updated[index] = value;
       return updated;
     });
+    if (value.trim() !== '') {
+      setAddItemError('');
+      setItemErrorIndexes((prev) => prev.filter((i) => i !== index));
+    }
+  };
 
   /* ---------- Time picker ---------- */
   const handleTimeChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -101,6 +125,36 @@ const EditBreakfast = () => {
 
   /* ---------- Save ---------- */
   const handleSave = async () => {
+    let hasError = false;
+
+    if (!mealName.trim()) {
+      setMealNameError('Meal name is required');
+      hasError = true;
+    } else {
+      setMealNameError('');
+    }
+
+    const emptyIndexes = menuItems.reduce<number[]>((acc, item, i) => {
+      if (item.trim() === '') acc.push(i);
+      return acc;
+    }, []);
+
+    if (menuItems.length === 0 || menuItems.every((i) => i.trim() === '')) {
+      setItemsError('At least 1 item is required');
+      setItemErrorIndexes(emptyIndexes);
+      hasError = true;
+    } else if (emptyIndexes.length > 0) {
+      setAddItemError('Please enter the item first');
+      setItemErrorIndexes(emptyIndexes);
+      hasError = true;
+    } else {
+      setItemsError('');
+      setAddItemError('');
+      setItemErrorIndexes([]);
+    }
+
+    if (hasError) return;
+
     const menuData = data?.menu;
 
     const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -154,18 +208,19 @@ const EditBreakfast = () => {
       {/* Meal Name */}
       <Text style={styles.label}>Meal Name</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, mealNameError ? styles.inputError : null]}
         placeholder={`e.g. ${capitalize(day)} Special ${capitalize(meal)}`}
         value={mealName}
-        onChangeText={setMealName}
+        onChangeText={(text) => { setMealName(text); if (text.trim()) setMealNameError(''); }}
       />
+      {mealNameError ? <Text style={styles.errorText}>{mealNameError}</Text> : null}
 
       {/* Menu Items */}
       <Text style={styles.label}>Menu Items</Text>
       {menuItems.map((item, index) => (
         <View key={index} style={styles.menuRow}>
           <TextInput
-            style={[styles.input, { flex: 1 }]}
+            style={[styles.input, { flex: 1 }, itemErrorIndexes.includes(index) ? styles.inputError : null]}
             value={item}
             placeholder="Enter item"
             onChangeText={(text) => updateItem(index, text)}
@@ -175,10 +230,12 @@ const EditBreakfast = () => {
           </TouchableOpacity>
         </View>
       ))}
+      {addItemError ? <Text style={styles.errorText}>{addItemError}</Text> : null}
 
       <TouchableOpacity style={styles.addBtn} onPress={addItem}>
         <Text style={styles.addText}>+ Add Item</Text>
       </TouchableOpacity>
+      {itemsError ? <Text style={styles.errorText}>{itemsError}</Text> : null}
 
       {/* Delivery Time */}
       <Text style={styles.label}>Delivery Time</Text>
@@ -313,6 +370,14 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 14,
     backgroundColor: "#fff",
+  },
+  inputError: {
+    borderColor: "#EF4444",
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#EF4444",
+    marginTop: 4,
   },
   menuRow: {
     flexDirection: "row",

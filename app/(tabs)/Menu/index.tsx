@@ -56,6 +56,8 @@ export default function WeeklyScreen() {
     return <Text>Loading...</Text>;
   }
 
+
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -85,17 +87,20 @@ export default function WeeklyScreen() {
       </ScrollView>
 
       {/* Meals */}
-      <View style={{marginTop: 20, gap: 4 }}>
+      <View style={{ marginTop: 20, gap: 4 }}>
         {MEALS.map((meal) => {
           const mealData = dayMenu?.[meal];
+          const { start, end } = mealData?.deliveryTime || {};
+
           return (
             <MealCard
               key={meal}
               title={meal.toUpperCase()}
+              mealName={mealData?.mealName}
               items={mealData?.items || []}
               time={
-                mealData?.deliveryTime
-                  ? `${mealData.deliveryTime.start} - ${mealData.deliveryTime.end}`
+                (start || end)
+                  ? [start, end].filter(Boolean).join(' - ')
                   : ''
               }
               price=""
@@ -105,14 +110,14 @@ export default function WeeklyScreen() {
         })}
       </View>
 
-      <View style={styles.footer}>
+      {/* <View style={styles.footer}>
         <Button
           title="Save Changes"
           variant="fill"
           fullWidth
           onPress={handleSave}
         />
-      </View>
+      </View> */}
     </ScrollView>
   );
 }
