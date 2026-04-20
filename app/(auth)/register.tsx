@@ -38,7 +38,13 @@ export default function RegisterScreen() {
 
             router.replace('/(auth)/login');
         } catch (err: any) {
-            Toast.show({ type: 'error', text1: err?.data?.message || 'Registration failed' });
+            // Toast.show({ type: 'error', text1: err?.data?.message || 'Registration failed' });
+            Toast.show({
+                type: 'error',
+                text1: 'Registration failed',
+                text2: err?.data?.message || 'Something went wrong. Please try again.',
+                visibilityTime: 4000,
+            });
         }
     };
 

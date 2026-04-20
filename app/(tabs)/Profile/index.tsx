@@ -1,14 +1,26 @@
 import AppText from "@/components/AppText";
 import Button from "@/components/Button";
-import { useGetProfileQuery } from "@/services/userApi";
+import { useDeleteAccountMutation, useGetProfileQuery } from "@/services/userApi";
 import { removeToken } from "@/utils/authStorage";
 import { useRouter } from "expo-router";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { data, isLoading } = useGetProfileQuery(undefined);
+  const [deleteAccount, { isLoading: isDeleting }] = useDeleteAccountMutation();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const vendor = data?.vendor;
   const user = vendor?.user;
@@ -16,6 +28,30 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     await removeToken();
     router.replace("/welcome");
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await deleteAccount(undefined).unwrap();
+      await removeToken();
+      setShowDeleteModal(false);
+      Toast.show({
+        type: "success",
+        text1: "Account deleted successfully",
+        visibilityTime: 2000,
+      });
+      setTimeout(() => router.replace("/welcome"), 2000);
+    } catch (err: unknown) {
+      setShowDeleteModal(false);
+      const message =
+        err && typeof err === "object" && "data" in err
+          ? (err as { data?: { message?: string } }).data?.message
+          : undefined;
+      Toast.show({
+        type: "error",
+        text1: message || "Failed to delete account",
+      });
+    }
   };
 
   if (isLoading) {
@@ -27,6 +63,7 @@ export default function ProfileScreen() {
   }
 
   return (
+    <>
     <SafeAreaView style={styles.container}>
 
       {/* SCROLLABLE CONTENT */}
@@ -42,7 +79,7 @@ export default function ProfileScreen() {
 
           {/* BUSINESS CARD */}
           <View style={styles.card}>
-            <AppText style={styles.businessName}  weight="medium">
+            <AppText style={styles.businessName} weight="medium">
               {vendor?.businessName}
             </AppText>
 
@@ -81,7 +118,7 @@ export default function ProfileScreen() {
 
           {/* ADDRESS */}
           <View style={styles.card}>
-            <AppText  weight="medium" style={styles.sectionTitle}>Business Address</AppText>
+            <AppText weight="medium" style={styles.sectionTitle}>Business Address</AppText>
 
             {vendor?.address ? (
               <AppText style={styles.address}>
@@ -111,21 +148,66 @@ export default function ProfileScreen() {
           fullWidth
           onPress={handleLogout}
         />
+        <TouchableOpacity onPress={() => setShowDeleteModal(true)} style={styles.deleteLink}>
+          <Text style={styles.deleteLinkText}>
+            Want to delete your account?{" "}
+            <Text style={styles.deleteLinkAction}>Delete Account</Text>
+          </Text>
+        </TouchableOpacity>
       </View>
+
     </SafeAreaView>
+
+      {/* DELETE CONFIRMATION MODAL — outside SafeAreaView to cover full screen */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.iconContainer}>
+              <Text style={styles.iconText}>🗑️</Text>
+            </View>
+
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to delete your account? This action cannot be undone.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.deleteBtn, isDeleting && styles.deleteBtnDisabled]}
+                onPress={confirmDelete}
+                disabled={isDeleting}
+              >
+                <Text style={styles.deleteText}>
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    // backgroundColor: "#f9fafb",
     flex: 1,
   },
-  scrollContent: {
-    // padding: 16,
-    // paddingBottom: 100,
-  },
+  scrollContent: {},
   header: {
     marginBottom: 10,
   },
@@ -139,8 +221,6 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 14,
     borderRadius: 14,
-    // borderBottomWidth: 1,
-    // borderBottomColor: "#222"
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
@@ -173,23 +253,19 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
-
   foodText: {
     color: "#16a34a",
     fontWeight: "600",
     fontSize: 12,
   },
-
   description: {
     color: "#374151",
     lineHeight: 20,
   },
-
   address: {
     color: "#374151",
     lineHeight: 20,
   },
-
   emptyText: {
     color: "#9ca3af",
     fontStyle: "italic",
@@ -197,5 +273,92 @@ const styles = StyleSheet.create({
   buttonContainer: {
     gap: 10,
     flexDirection: "column",
+  },
+  deleteLink: {
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  deleteLinkText: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    textAlign: "center",
+  },
+  deleteLinkAction: {
+    color: "#EF4444",
+    fontWeight: "600",
+  },
+
+  /* Modal */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    alignItems: "center",
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#FEE2E2",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  iconText: {
+    fontSize: 28,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+  },
+  cancelText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  deleteBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+  },
+  deleteBtnDisabled: {
+    backgroundColor: "#FCA5A5",
+  },
+  deleteText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
   },
 });

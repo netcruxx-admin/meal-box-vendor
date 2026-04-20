@@ -38,7 +38,12 @@ export default function LoginScreen() {
       Toast.show({ type: 'success', text1: 'Login successful' });
       router.replace('/(tabs)');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err?.data?.message || 'Login failed' });
+      Toast.show({
+        type: 'error',
+        text1: 'Login Failed',
+        text2: err?.data?.message || 'Something went wrong. Please try again.',
+        visibilityTime: 4000,
+      });
     }
   };
 

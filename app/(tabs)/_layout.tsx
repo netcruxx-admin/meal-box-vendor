@@ -82,7 +82,6 @@ export default function TabLayout() {
               tabBarIcon: ({ color }) => (
                 <Ionicons
                   name={tab.iconFilled}
-
                   size={24}
                   color={color}
                 />
