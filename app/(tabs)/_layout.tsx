@@ -58,6 +58,8 @@ export default function TabLayout() {
     },
   ];
 
+  const hiddenTabs = ["Reviews"];
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "white" }} edges={['top', 'left', 'right']}>
       <Tabs
@@ -87,6 +89,13 @@ export default function TabLayout() {
                 />
               ),
             }}
+          />
+        ))}
+        {hiddenTabs.map((name) => (
+          <Tabs.Screen
+            key={name}
+            name={name}
+            options={{ href: null }}
           />
         ))}
       </Tabs>

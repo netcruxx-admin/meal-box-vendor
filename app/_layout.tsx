@@ -46,7 +46,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Provider store={store}>
         <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
-          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
         </Stack>
         <StatusBar style="dark" />
         <Toast />

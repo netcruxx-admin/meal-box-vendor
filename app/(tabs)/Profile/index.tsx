@@ -1,6 +1,7 @@
 import AppText from "@/components/AppText";
 import Button from "@/components/Button";
 import { useDeleteAccountMutation, useGetProfileQuery } from "@/services/userApi";
+import { useGetVendorReviewsQuery } from "@/services/reviewApi";
 import { removeToken } from "@/utils/authStorage";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -15,12 +16,39 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+import { colors } from "@/constants/theme";
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <View style={styles.starsRow}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Text key={i} style={[styles.star, i <= rating ? styles.starFilled : styles.starEmpty]}>★</Text>
+      ))}
+    </View>
+  );
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { data, isLoading } = useGetProfileQuery(undefined);
   const [deleteAccount, { isLoading: isDeleting }] = useDeleteAccountMutation();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [reviewPage, setReviewPage] = useState(1);
+
+  const vendorId = data?.vendor?._id;
+  const { data: reviewData, isLoading: reviewsLoading, isFetching: reviewsFetching } = useGetVendorReviewsQuery(
+    { vendorId, page: reviewPage, limit: 10 },
+    { skip: !vendorId }
+  );
+
+  const reviews = reviewData?.reviews || [];
+  const totalPages = reviewData?.totalPages || 1;
+  const totalReviews = reviewData?.totalReviews || 0;
+  const averageRating = reviewData?.averageRating || 0;
 
   const vendor = data?.vendor;
   const user = vendor?.user;
@@ -131,6 +159,86 @@ export default function ProfileScreen() {
               <AppText style={styles.emptyText}>No address added</AppText>
             )}
           </View>
+
+          {/* REVIEWS */}
+          <AppText weight="medium" style={styles.sectionTitle}>Reviews</AppText>
+
+          {reviewsLoading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
+          ) : (
+            <>
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryLeft}>
+                  <Text style={styles.avgRating}>{averageRating.toFixed(1)}</Text>
+                  <StarRating rating={Math.round(averageRating)} />
+                  <Text style={styles.totalReviews}>{totalReviews} reviews</Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryRight}>
+                  {[5, 4, 3, 2, 1].map((star) => {
+                    const count = reviews.filter((r: any) => r.rating === star).length;
+                    const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                    return (
+                      <View key={star} style={styles.barRow}>
+                        <Text style={styles.barLabel}>{star}★</Text>
+                        <View style={styles.barBg}>
+                          <View style={[styles.barFill, { width: `${pct}%` as any }]} />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {reviews.length === 0 ? (
+                <View style={styles.emptyReviews}>
+                  <Text style={styles.emptyIcon}>📭</Text>
+                  <Text style={styles.emptyTitle}>No reviews yet</Text>
+                  <Text style={styles.emptySubtitle}>Reviews from customers will appear here</Text>
+                </View>
+              ) : (
+                reviews.map((review: any) => (
+                  <View key={review._id} style={styles.reviewCard}>
+                    <View style={styles.reviewHeader}>
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>
+                          {review.user?.name?.charAt(0)?.toUpperCase() || '?'}
+                        </Text>
+                      </View>
+                      <View style={styles.reviewHeaderText}>
+                        <Text style={styles.reviewerName}>{review.user?.name || 'Anonymous'}</Text>
+                        <Text style={styles.reviewDate}>{formatDate(review.createdAt)}</Text>
+                      </View>
+                      <StarRating rating={review.rating} />
+                    </View>
+                    {!!review.comment && (
+                      <Text style={styles.comment}>{review.comment}</Text>
+                    )}
+                  </View>
+                ))
+              )}
+
+              {totalPages > 1 && (
+                <View style={styles.pagination}>
+                  <TouchableOpacity
+                    style={[styles.pageBtn, reviewPage === 1 && styles.pageBtnDisabled]}
+                    onPress={() => setReviewPage((p) => Math.max(1, p - 1))}
+                    disabled={reviewPage === 1 || reviewsFetching}
+                  >
+                    <Text style={styles.pageBtnText}>← Prev</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.pageInfo}>{reviewPage} / {totalPages}</Text>
+                  <TouchableOpacity
+                    style={[styles.pageBtn, reviewPage === totalPages && styles.pageBtnDisabled]}
+                    onPress={() => setReviewPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={reviewPage === totalPages || reviewsFetching}
+                  >
+                    <Text style={styles.pageBtnText}>Next →</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -286,6 +394,169 @@ const styles = StyleSheet.create({
   deleteLinkAction: {
     color: "#EF4444",
     fontWeight: "600",
+  },
+
+  /* Reviews */
+  summaryCard: {
+    flexDirection: 'row',
+    backgroundColor: '#f9fafb',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  summaryLeft: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  avgRating: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#111827',
+    lineHeight: 44,
+  },
+  totalReviews: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  summaryDivider: {
+    width: 1,
+    backgroundColor: '#e5e7eb',
+    marginHorizontal: 14,
+  },
+  summaryRight: {
+    flex: 2,
+    justifyContent: 'center',
+    gap: 5,
+  },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  barLabel: {
+    fontSize: 11,
+    color: '#6b7280',
+    width: 22,
+  },
+  barBg: {
+    flex: 1,
+    height: 6,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: 6,
+    backgroundColor: '#f59e0b',
+    borderRadius: 4,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  star: {
+    fontSize: 14,
+  },
+  starFilled: {
+    color: '#f59e0b',
+  },
+  starEmpty: {
+    color: '#d1d5db',
+  },
+  reviewCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  reviewHeaderText: {
+    flex: 1,
+  },
+  reviewerName: {
+    fontWeight: '600',
+    fontSize: 13,
+    color: '#111827',
+  },
+  reviewDate: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginTop: 1,
+  },
+  comment: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 19,
+  },
+  emptyReviews: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyIcon: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+    color: '#111827',
+  },
+  emptySubtitle: {
+    color: '#6b7280',
+    textAlign: 'center',
+    fontSize: 13,
+  },
+  pagination: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  pageBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  pageBtnDisabled: {
+    backgroundColor: '#e5e7eb',
+  },
+  pageBtnText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  pageInfo: {
+    fontSize: 13,
+    color: '#374151',
+    fontWeight: '600',
   },
 
   /* Modal */

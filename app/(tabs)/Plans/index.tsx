@@ -6,125 +6,299 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Modal,
+  ScrollView,
 } from "react-native";
 import ScreenScrollView from "@/components/ScreenScrollView";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
 import { useGetPlansQuery, useUpdatePlansMutation } from "@/services/vendorPlanApi";
+import { useGetWeeklyMenuQuery } from "@/services/vendorMenuApi";
 import GoBack from "@/components/GoBack";
 import AppText from "@/components/AppText";
 import Button from "@/components/Button";
 
 /* ---------- Types ---------- */
-type PlanType = "full_day" | "lunch_dinner" | "lunch_only";
+type MealType =
+  | "breakfast_only"
+  | "lunch_only"
+  | "dinner_only"
+  | "breakfast_lunch"
+  | "breakfast_dinner"
+  | "lunch_dinner"
+  | "full_day";
 
-const PLAN_TYPE_LABELS: Record<PlanType, string> = {
-  full_day: "Full Day (Breakfast + Lunch + Dinner)",
-  lunch_dinner: "Lunch + Dinner",
+const MEAL_LABELS: Record<MealType, string> = {
+  breakfast_only: "Breakfast Only",
   lunch_only: "Lunch Only",
+  dinner_only: "Dinner Only",
+  breakfast_lunch: "Breakfast + Lunch",
+  breakfast_dinner: "Breakfast + Dinner",
+  lunch_dinner: "Lunch + Dinner",
+  full_day: "Breakfast + Lunch + Dinner",
 };
 
-const PLAN_TYPES: PlanType[] = ["full_day", "lunch_dinner", "lunch_only"];
+const MEAL_GROUPS: { label: string; meals: MealType[] }[] = [
+  { label: "1 Time Meal", meals: ["breakfast_only", "lunch_only", "dinner_only"] },
+  { label: "2 Times Meal", meals: ["breakfast_lunch", "breakfast_dinner", "lunch_dinner"] },
+  { label: "3 Times Meal", meals: ["full_day"] },
+];
 
-/* ---------- Plan Type Dropdown ---------- */
-const PlanTypeDropdown = ({
-  value,
-  onChange,
+const ALL_MEALS = MEAL_GROUPS.flatMap((g) => g.meals);
+
+type MealPriceMap = Record<MealType, string>;
+
+const emptyPrices = (): MealPriceMap =>
+  Object.fromEntries(ALL_MEALS.map((m) => [m, ""])) as MealPriceMap;
+
+/* ---------- Meal Combination Row ---------- */
+const MealRow = ({
+  mealType,
+  price,
+  onChangePrice,
+  disabled,
+  error,
 }: {
-  value: PlanType;
-  onChange: (v: PlanType) => void;
+  mealType: MealType;
+  price: string;
+  onChangePrice: (v: string) => void;
+  disabled: boolean;
+  error?: string;
 }) => {
-  const [open, setOpen] = useState(false);
+  const base = Number(price) || 0;
   return (
-    <>
-      <TouchableOpacity style={styles.dropdown} onPress={() => setOpen(true)}>
-        <Text style={styles.dropdownText}>{PLAN_TYPE_LABELS[value]}</Text>
-        <Ionicons name="chevron-down" size={16} color="#6B7280" />
-      </TouchableOpacity>
-
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
-          <View style={styles.dropdownMenu}>
-            {PLAN_TYPES.map((pt) => (
-              <TouchableOpacity
-                key={pt}
-                style={[styles.dropdownOption, value === pt && styles.dropdownOptionActive]}
-                onPress={() => { onChange(pt); setOpen(false); }}
-              >
-                <Text style={[styles.dropdownOptionText, value === pt && styles.dropdownOptionTextActive]}>
-                  {PLAN_TYPE_LABELS[pt]}
-                </Text>
-                {value === pt && <Ionicons name="checkmark" size={16} color="#2563EB" />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </>
+    <View style={rowStyles.container}>
+      <Text style={rowStyles.label}>{MEAL_LABELS[mealType]}</Text>
+      <View style={rowStyles.inputWrapper}>
+        <Text style={rowStyles.rupee}>₹</Text>
+        <TextInput
+          style={[rowStyles.input, disabled && rowStyles.inputDisabled, !!error && rowStyles.inputError]}
+          placeholder="Set price"
+          placeholderTextColor="#9CA3AF"
+          value={price}
+          onChangeText={(v) => onChangePrice(v.replace(/[^0-9]/g, ""))}
+          keyboardType="numeric"
+          editable={!disabled}
+        />
+      </View>
+      {!!error && <Text style={rowStyles.errorText}>{error}</Text>}
+    </View>
   );
 };
 
+const rowStyles = StyleSheet.create({
+  container: { marginBottom: 10 },
+  label: { fontSize: 13, color: "#374151", fontWeight: "500", marginBottom: 5 },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+  },
+  rupee: { fontSize: 14, color: "#6B7280", marginRight: 4 },
+  input: { flex: 1, paddingVertical: 10, fontSize: 14, color: "#111827" },
+  inputDisabled: { backgroundColor: "#F9FAFB", color: "#9CA3AF" },
+  inputError: { borderColor: "#EF4444" },
+  errorText: { fontSize: 10, color: "#EF4444", marginTop: 2 },
+});
+
+/* ---------- Duration Card ---------- */
+const DurationCard = ({
+  title,
+  duration,
+  durationLabel,
+  prices,
+  discount,
+  onChangePrice,
+  onChangeDiscount,
+  editing,
+  onToggleEdit,
+  errors,
+}: {
+  title: string;
+  duration: number;
+  durationLabel: string;
+  prices: MealPriceMap;
+  discount: string;
+  onChangePrice: (meal: MealType, v: string) => void;
+  onChangeDiscount: (v: string) => void;
+  editing: boolean;
+  onToggleEdit: () => void;
+  errors: Partial<Record<MealType | "discount", string>>;
+}) => {
+  const discNum = Math.min(Math.max(Number(discount) || 0, 0), 100);
+  const filledCount = ALL_MEALS.filter((m) => Number(prices[m]) > 0).length;
+
+  return (
+    <View style={[styles.card, editing && styles.cardActive]}>
+      {/* Header */}
+      <View style={styles.cardHeader}>
+        <View>
+          <Text style={styles.cardTitle}>{title}</Text>
+          <Text style={styles.cardSub}>{durationLabel} · {filledCount} combination{filledCount !== 1 ? "s" : ""} set</Text>
+        </View>
+        <TouchableOpacity onPress={onToggleEdit}>
+          <Text style={styles.editText}>{editing ? "Done" : "Edit"}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Discount */}
+      <View style={styles.discountRow}>
+        <Text style={styles.discountLabel}>Global Discount %</Text>
+        <View style={styles.discountInputWrapper}>
+          <TextInput
+            style={[styles.discountInput, !editing && styles.inputDisabled, errors.discount ? styles.inputError : null]}
+            value={discount}
+            onChangeText={(v) => onChangeDiscount(v.replace(/[^0-9]/g, ""))}
+            keyboardType="numeric"
+            placeholder="0"
+            placeholderTextColor="#9CA3AF"
+            editable={editing}
+          />
+          <Text style={styles.discountPct}>%</Text>
+        </View>
+      </View>
+      {discNum > 0 && <Text style={styles.discountHint}>Save {discNum}% shown to users on all combinations</Text>}
+      {errors.discount && <Text style={rowStyles.errorText}>{errors.discount}</Text>}
+
+      {/* Meal Groups */}
+      {MEAL_GROUPS.map((group) => (
+        <View key={group.label} style={styles.group}>
+          <Text style={styles.groupLabel}>{group.label}</Text>
+          {group.meals.map((meal) => (
+            <MealRow
+              key={meal}
+              mealType={meal}
+              price={prices[meal]}
+              onChangePrice={(v) => onChangePrice(meal, v)}
+              disabled={!editing}
+              error={errors[meal]}
+            />
+          ))}
+        </View>
+      ))}
+
+      <Text style={styles.hint}>Leave blank to not offer a combination to users.</Text>
+    </View>
+  );
+};
+
+/* ---------- Screen ---------- */
 export default function PlansScreen() {
   const router = useRouter();
   const { data, isLoading } = useGetPlansQuery(undefined);
+  const { data: menuData, isLoading: isMenuLoading } = useGetWeeklyMenuQuery(undefined);
   const [updatePlans, { isLoading: isUpdating }] = useUpdatePlansMutation();
 
-  const [activeCard, setActiveCard] = useState<"weekly" | "monthly">("weekly");
+  const [editingCard, setEditingCard] = useState<"weekly" | "monthly" | null>(null);
 
-  const [weeklyPlanType, setWeeklyPlanType] = useState<PlanType>("full_day");
-  const [weeklyPrice, setWeeklyPrice] = useState("");
-  const [weeklyDiscount, setWeeklyDiscount] = useState("");
+  const [weeklyPrices, setWeeklyPrices] = useState<MealPriceMap>(emptyPrices());
+  const [weeklyDiscount, setWeeklyDiscount] = useState("0");
 
-  const [monthlyPlanType, setMonthlyPlanType] = useState<PlanType>("full_day");
-  const [monthlyPrice, setMonthlyPrice] = useState("");
-  const [monthlyDiscount, setMonthlyDiscount] = useState("");
+  const [monthlyPrices, setMonthlyPrices] = useState<MealPriceMap>(emptyPrices());
+  const [monthlyDiscount, setMonthlyDiscount] = useState("0");
 
-  /* Load saved plans into form when API responds */
+  const [errors, setErrors] = useState<{
+    weekly: Partial<Record<MealType | "discount", string>>;
+    monthly: Partial<Record<MealType | "discount", string>>;
+  }>({ weekly: {}, monthly: {} });
+
+  /* Load saved plans */
   useEffect(() => {
     if (data?.plans) {
       const p = data.plans;
       if (p.weekly) {
-        setWeeklyPlanType(p.weekly.planType ?? "full_day");
-        setWeeklyPrice(String(p.weekly.price ?? ""));
+        if (p.weekly.mealPlans) {
+          const wp = emptyPrices();
+          Object.entries(p.weekly.mealPlans).forEach(([k, v]) => {
+            if (k in wp) wp[k as MealType] = String(v ?? "");
+          });
+          setWeeklyPrices(wp);
+        }
         setWeeklyDiscount(String(p.weekly.discount ?? "0"));
       }
       if (p.monthly) {
-        setMonthlyPlanType(p.monthly.planType ?? "full_day");
-        setMonthlyPrice(String(p.monthly.price ?? ""));
+        if (p.monthly.mealPlans) {
+          const mp = emptyPrices();
+          Object.entries(p.monthly.mealPlans).forEach(([k, v]) => {
+            if (k in mp) mp[k as MealType] = String(v ?? "");
+          });
+          setMonthlyPrices(mp);
+        }
         setMonthlyDiscount(String(p.monthly.discount ?? "0"));
       }
     }
   }, [data]);
 
-  /* Price calculations */
-  const wBase = Number(weeklyPrice) || 0;
-  const wDisc = Math.min(Math.max(Number(weeklyDiscount) || 0, 0), 100);
-  const wDiscAmt = Math.round((wBase * wDisc) / 100);
-  const wFinal = wBase - wDiscAmt;
-  const wPerDay = wBase > 0 ? Math.round(wBase / 7) : 0;
+  /* Menu completeness check */
+  const getMissingDays = () => {
+    if (!menuData?.menu) return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    return days
+      .filter((day) => {
+        const d = menuData.menu[day];
+        return !(d?.breakfast?.mealName || d?.lunch?.mealName || d?.dinner?.mealName);
+      })
+      .map((d) => d.charAt(0).toUpperCase() + d.slice(1));
+  };
 
-  const mBase = Number(monthlyPrice) || 0;
-  const mDisc = Math.min(Math.max(Number(monthlyDiscount) || 0, 0), 100);
-  const mDiscAmt = Math.round((mBase * mDisc) / 100);
-  const mFinal = mBase - mDiscAmt;
-  const mPerDay = mBase > 0 ? Math.round(mBase / 30) : 0;
+  const missingDays = getMissingDays();
+  const menuIsComplete = missingDays.length === 0;
+
+  const validatePrices = (prices: MealPriceMap, discount: string) => {
+    const errs: Partial<Record<MealType | "discount", string>> = {};
+    const hasAny = ALL_MEALS.some((m) => Number(prices[m]) > 0);
+    if (!hasAny) {
+      errs.full_day = "Set at least one combination price";
+    }
+    ALL_MEALS.forEach((m) => {
+      const v = Number(prices[m]);
+      if (prices[m] && v < 100) errs[m] = "Min ₹100";
+      else if (prices[m] && v > 100000) errs[m] = "Max ₹1,00,000";
+    });
+    if (Number(discount) > 100) errs.discount = "Max 100%";
+    return errs;
+  };
 
   const handleUpdate = async () => {
+    if (!menuIsComplete) {
+      Toast.show({
+        type: "error",
+        text1: "Menu Incomplete",
+        text2: `Please add meals for ${missingDays.join(", ")} before updating plans.`,
+      });
+      return;
+    }
+
+    const wErrs = validatePrices(weeklyPrices, weeklyDiscount);
+    const mErrs = validatePrices(monthlyPrices, monthlyDiscount);
+    if (Object.keys(wErrs).length > 0 || Object.keys(mErrs).length > 0) {
+      setErrors({ weekly: wErrs, monthly: mErrs });
+      return;
+    }
+    setErrors({ weekly: {}, monthly: {} });
+
+    const buildMealPlans = (prices: MealPriceMap) =>
+      Object.fromEntries(
+        ALL_MEALS
+          .filter((m) => Number(prices[m]) > 0)
+          .map((m) => [m, Number(prices[m])])
+      );
+
     try {
       await updatePlans({
         weekly: {
-          planType: weeklyPlanType,
           duration: 7,
-          price: wBase,       // save base price (before discount)
-          discount: wDisc,
+          discount: Math.min(Math.max(Number(weeklyDiscount) || 0, 0), 100),
+          mealPlans: buildMealPlans(weeklyPrices),
         },
         monthly: {
-          planType: monthlyPlanType,
           duration: 30,
-          price: mBase,       // save base price (before discount)
-          discount: mDisc,
+          discount: Math.min(Math.max(Number(monthlyDiscount) || 0, 0), 100),
+          mealPlans: buildMealPlans(monthlyPrices),
         },
       }).unwrap();
 
@@ -157,158 +331,72 @@ export default function PlansScreen() {
       {/* Header */}
       <View style={styles.header}>
         <GoBack />
-        <AppText weight='semiBold'>Subscription Plans</AppText>
+        <AppText weight="semiBold">Subscription Plans</AppText>
       </View>
 
-      {/* Weekly Plan */}
-      <View style={[styles.card, activeCard === "weekly" && styles.cardActive]}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Weekly Plan</Text>
-          <TouchableOpacity onPress={() => setActiveCard("weekly")}>
-            <Text style={styles.editText}>Edit</Text>
-          </TouchableOpacity>
-        </View>
+      {!menuIsComplete && !isMenuLoading && (
+        <TouchableOpacity style={styles.warningBox} onPress={() => router.push("/(tabs)/Menu")}>
+          <Ionicons name="warning" size={18} color="#92400E" style={{ marginRight: 8 }} />
+          <Text style={styles.warningText}>
+            Your weekly menu is incomplete. Please add at least one meal for each day to enable subscriptions.
+          </Text>
+        </TouchableOpacity>
+      )}
 
-        <Text style={styles.label}>Plan Type</Text>
-        <PlanTypeDropdown value={weeklyPlanType} onChange={setWeeklyPlanType} />
+      <DurationCard
+        title="Weekly Plan"
+        duration={7}
+        durationLabel="7 days"
+        prices={weeklyPrices}
+        discount={weeklyDiscount}
+        onChangePrice={(meal, v) => {
+          setWeeklyPrices((prev) => ({ ...prev, [meal]: v }));
+          setErrors((e) => ({ ...e, weekly: { ...e.weekly, [meal]: undefined } }));
+        }}
+        onChangeDiscount={(v) => {
+          setWeeklyDiscount(v);
+          setErrors((e) => ({ ...e, weekly: { ...e.weekly, discount: undefined } }));
+        }}
+        editing={editingCard === "weekly"}
+        onToggleEdit={() => setEditingCard(editingCard === "weekly" ? null : "weekly")}
+        errors={errors.weekly}
+      />
 
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Duration</Text>
-            <View style={styles.staticField}>
-              <Text style={styles.staticText}>7 days</Text>
-            </View>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Price (₹)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Total base price"
-              value={weeklyPrice}
-              onChangeText={(v) => setWeeklyPrice(v.replace(/[^0-9]/g, ""))}
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
+      <DurationCard
+        title="Monthly Plan"
+        duration={30}
+        durationLabel="30 days"
+        prices={monthlyPrices}
+        discount={monthlyDiscount}
+        onChangePrice={(meal, v) => {
+          setMonthlyPrices((prev) => ({ ...prev, [meal]: v }));
+          setErrors((e) => ({ ...e, monthly: { ...e.monthly, [meal]: undefined } }));
+        }}
+        onChangeDiscount={(v) => {
+          setMonthlyDiscount(v);
+          setErrors((e) => ({ ...e, monthly: { ...e.monthly, discount: undefined } }));
+        }}
+        editing={editingCard === "monthly"}
+        onToggleEdit={() => setEditingCard(editingCard === "monthly" ? null : "monthly")}
+        errors={errors.monthly}
+      />
 
-        <Text style={styles.label}>Discount %</Text>
-        <TextInput
-          style={styles.input}
-          value={weeklyDiscount}
-          onChangeText={(v) => setWeeklyDiscount(v.replace(/[^0-9]/g, ""))}
-          keyboardType="numeric"
-          placeholder="0"
-        />
-
-        {wBase > 0 && (
-          <View style={styles.summaryBox}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Base Price:</Text>
-              <Text style={styles.summaryValue}>₹{wPerDay}/day × 7 = ₹{wBase}</Text>
-            </View>
-            {wDisc > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: "#16A34A" }]}>Discount ({wDisc}%):</Text>
-                <Text style={[styles.summaryValue, { color: "#16A34A" }]}>-₹{wDiscAmt}</Text>
-              </View>
-            )}
-            <View style={[styles.summaryRow, styles.finalRow]}>
-              <Text style={styles.finalLabel}>Final Price:</Text>
-              <Text style={styles.finalValue}>₹{wFinal}/week</Text>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* Monthly Plan */}
-      <View style={[styles.card, activeCard === "monthly" && styles.cardActive]}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Monthly Plan</Text>
-          <TouchableOpacity onPress={() => setActiveCard("monthly")}>
-            <Text style={styles.editText}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.label}>Plan Type</Text>
-        <PlanTypeDropdown value={monthlyPlanType} onChange={setMonthlyPlanType} />
-
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Duration</Text>
-            <View style={styles.staticField}>
-              <Text style={styles.staticText}>30 days</Text>
-            </View>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Price (₹)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Total base price"
-              value={monthlyPrice}
-              onChangeText={(v) => setMonthlyPrice(v.replace(/[^0-9]/g, ""))}
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
-
-        <Text style={styles.label}>Discount %</Text>
-        <TextInput
-          style={styles.input}
-          value={monthlyDiscount}
-          onChangeText={(v) => setMonthlyDiscount(v.replace(/[^0-9]/g, ""))}
-          keyboardType="numeric"
-          placeholder="0"
-        />
-
-        {mBase > 0 && (
-          <View style={styles.summaryBox}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Base Price:</Text>
-              <Text style={styles.summaryValue}>₹{mPerDay}/day × 30 = ₹{mBase}</Text>
-            </View>
-            {mDisc > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: "#16A34A" }]}>Discount ({mDisc}%):</Text>
-                <Text style={[styles.summaryValue, { color: "#16A34A" }]}>-₹{mDiscAmt}</Text>
-              </View>
-            )}
-            <View style={[styles.summaryRow, styles.finalRow]}>
-              <Text style={styles.finalLabel}>Final Price:</Text>
-              <Text style={styles.finalValue}>₹{mFinal}/month</Text>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* Update Button */}
       <Button
         title={isUpdating ? "Updating..." : "Update Pricing"}
         variant="fill"
         fullWidth
         onPress={handleUpdate}
-        disabled={isUpdating}
+        disabled={isUpdating || !menuIsComplete}
       />
     </ScreenScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  loaderContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  container: {
-    flex: 1,
-    padding: 10,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 10
-  },
-  /* Card */
+  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, padding: 10 },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
+
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
@@ -325,147 +413,57 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  cardTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  cardSub: { fontSize: 12, color: "#6B7280", marginTop: 2 },
+  editText: { fontSize: 13, color: "#2563EB", fontWeight: "600" },
+
+  discountRow: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 4,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
+  discountLabel: { fontSize: 13, color: "#374151", fontWeight: "500" },
+  discountInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    width: 90,
   },
-  editText: {
-    fontSize: 13,
-    color: "#2563EB",
-    fontWeight: "600",
-  },
+  discountInput: { flex: 1, paddingVertical: 8, fontSize: 14, color: "#111827" },
+  discountPct: { fontSize: 14, color: "#6B7280" },
+  discountHint: { fontSize: 11, color: "#16A34A", marginBottom: 8 },
+  inputDisabled: { backgroundColor: "#F9FAFB", color: "#9CA3AF" },
+  inputError: { borderColor: "#EF4444" },
 
-  /* Form fields */
-  label: {
+  group: { marginTop: 14 },
+  groupLabel: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#374151",
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: "#FFFFFF",
-    color: "#111827",
-  },
-  staticField: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: "#F9FAFB",
-  },
-  staticText: {
-    fontSize: 14,
+    fontWeight: "700",
     color: "#6B7280",
-  },
-  row: {
-    flexDirection: "row",
-    gap: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
 
-  /* Dropdown */
-  dropdown: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
+  hint: { fontSize: 11, color: "#9CA3AF", marginTop: 10, textAlign: "center" },
+
+  warningBox: {
+    backgroundColor: "#FEF3C7",
     padding: 12,
-    backgroundColor: "#FFFFFF",
-  },
-  dropdownText: {
-    fontSize: 14,
-    color: "#111827",
-    flex: 1,
-    marginRight: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  dropdownMenu: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    overflow: "hidden",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  dropdownOption: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  dropdownOptionActive: {
-    backgroundColor: "#EFF6FF",
-  },
-  dropdownOptionText: {
-    fontSize: 14,
-    color: "#374151",
-    flex: 1,
-  },
-  dropdownOptionTextActive: {
-    color: "#2563EB",
-    fontWeight: "600",
-  },
-
-  /* Price summary */
-  summaryBox: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 10,
-    padding: 12,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  summaryRow: {
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#F59E0B",
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
+    alignItems: "center",
   },
-  summaryLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
-  summaryValue: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#374151",
-  },
-  finalRow: {
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    paddingTop: 8,
-    marginTop: 2,
-    marginBottom: 0,
-  },
-  finalLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  finalValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2563EB",
-  },
-
+  warningText: { color: "#92400E", fontSize: 12, flex: 1, lineHeight: 18 },
 });

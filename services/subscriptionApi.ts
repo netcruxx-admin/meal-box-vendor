@@ -4,6 +4,11 @@ import { baseApi } from "./baseApi";
 
 export const vendorSubscriptionApi = baseApi.injectEndpoints({
     endpoints: (builder) => ({
+        getVendorOverview: builder.query({
+            query: () => "/subscriptions/vendor/overview",
+            providesTags: ["Subscriptions"],
+        }),
+
         getVendorSubscriptions: builder.query({
             query: () => "/subscriptions/vendor",
             providesTags: ["Subscriptions"],
@@ -28,6 +33,7 @@ export const vendorSubscriptionApi = baseApi.injectEndpoints({
 });
 
 export const {
+    useGetVendorOverviewQuery,
     useGetVendorSubscriptionsQuery,
     useAcceptSubscriptionMutation,
     useRejectSubscriptionMutation

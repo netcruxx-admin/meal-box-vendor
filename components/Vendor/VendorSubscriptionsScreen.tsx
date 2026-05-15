@@ -17,9 +17,19 @@ import { colors } from "@/constants/theme";
 import GoBack from "../GoBack";
 import AppText from "../AppText";
 
+const MEAL_LABELS: Record<string, string> = {
+    breakfast_only: "Breakfast Only",
+    lunch_only: "Lunch Only",
+    dinner_only: "Dinner Only",
+    breakfast_lunch: "Breakfast + Lunch",
+    breakfast_dinner: "Breakfast + Dinner",
+    lunch_dinner: "Lunch + Dinner",
+    full_day: "Breakfast + Lunch + Dinner",
+};
+
 export default function VendorSubscriptionsScreen() {
     const { data, isLoading } = useGetVendorSubscriptionsQuery(undefined);
-    const [filter, setFilter] = useState<"pending" | "accepted" | "rejected">("pending");
+    const [filter, setFilter] = useState<"pending" | "accepted" | "rejected" | "paused">("pending");
     const [acceptSubscription] = useAcceptSubscriptionMutation();
     const [rejectSubscription] = useRejectSubscriptionMutation();
 
@@ -73,13 +83,13 @@ export default function VendorSubscriptionsScreen() {
                 <AppText weight='semiBold'>Subscription Requests</AppText>
             </View>
             <View style={styles.filterContainer}>
-                {["pending", "accepted", "rejected"].map((item) => (
+                {["pending", "accepted", "paused", "rejected"].map((item) => (
                     <TouchableOpacity
                         key={item}
                         onPress={() => setFilter(item as any)}
                         style={[
                             styles.filterBtn,
-                            filter === item && styles.filterActive,
+                            filter === item && (item === "paused" ? styles.filterActivePaused : styles.filterActive),
                         ]}
                     >
                         <Text
@@ -103,6 +113,7 @@ export default function VendorSubscriptionsScreen() {
                                 sub.status === "accepted" && styles.cardAccepted,
                                 sub.status === "pending" && styles.cardPending,
                                 sub.status === "rejected" && styles.cardRejected,
+                                sub.status === "paused" && styles.cardPaused,
                             ]}
                         >
                             {/* HEADER */}
@@ -118,6 +129,7 @@ export default function VendorSubscriptionsScreen() {
                                         sub.status === "accepted" && styles.badgeAccepted,
                                         sub.status === "pending" && styles.badgePending,
                                         sub.status === "rejected" && styles.badgeRejected,
+                                        sub.status === "paused" && styles.badgePaused,
                                     ]}
                                 >
                                     <Text style={styles.badgeText}>
@@ -125,20 +137,23 @@ export default function VendorSubscriptionsScreen() {
                                             ? "Accepted"
                                             : sub.status === "pending"
                                                 ? "Pending"
-                                                : "Rejected"}
+                                                : sub.status === "paused"
+                                                    ? "Paused"
+                                                    : "Rejected"}
                                     </Text>
                                 </View>
                             </View>
 
                             {/* PLAN */}
                             <Text style={styles.plan}>
-                                {sub.planType === "weekly"
+                                {(sub.planDuration ?? sub.planType) === "weekly"
                                     ? "Weekly Plan • 7 Days"
                                     : "Monthly Plan • 30 Days"}
+                                {sub.mealType ? ` · ${MEAL_LABELS[sub.mealType] ?? sub.mealType}` : ""}
                             </Text>
 
                             {/* ADDRESS */}
-                            {sub.status === "accepted" && sub.user?.address ? (
+                            {(sub.status === "accepted" || sub.status === "paused") && sub.user?.address ? (
                                 <Text style={styles.address}>
                                     {sub.user.address.line1}, {sub.user.address.city},{" "}
                                     {sub.user.address.state}
@@ -148,6 +163,26 @@ export default function VendorSubscriptionsScreen() {
                                     Address visible after accepting
                                 </Text>
                             )}
+
+                            {/* PAUSED INFO */}
+                            {sub.status === "paused" && (() => {
+                                const last = sub.pauseHistory?.[sub.pauseHistory.length - 1];
+                                return (
+                                    <View style={styles.pauseBox}>
+                                        <Text style={styles.pauseTitle}>Subscription is currently paused</Text>
+                                        {sub.endDate && (
+                                            <Text style={styles.pauseMeta}>New end date: {new Date(sub.endDate).toLocaleDateString()}</Text>
+                                        )}
+                                        {last && (
+                                            <>
+                                                <Text style={styles.pauseMeta}>Paused from: {new Date(last.pauseStartDate).toLocaleDateString()}</Text>
+                                                <Text style={styles.pauseMeta}>Paused until: {new Date(last.pauseEndDate).toLocaleDateString()}</Text>
+                                                <Text style={styles.pauseMeta}>Days paused: {last.pausedDays}</Text>
+                                            </>
+                                        )}
+                                    </View>
+                                );
+                            })()}
 
                             {/* ACTION ROW */}
                             <View style={styles.bottomRow}>
@@ -159,7 +194,7 @@ export default function VendorSubscriptionsScreen() {
                                     <Text style={styles.callText}>📞 Call</Text>
                                 </TouchableOpacity>
 
-                                <Text style={styles.price}>₹{sub.price}</Text>
+                                <Text style={styles.price}>₹{sub.finalPrice ?? sub.price}</Text>
                             </View>
 
                             {/* ACTION BUTTONS */}
@@ -193,7 +228,9 @@ export default function VendorSubscriptionsScreen() {
                             ? "No pending subscription requests"
                             : filter === "accepted"
                                 ? "No accepted subscriptions yet"
-                                : "No rejected subscriptions"}
+                                : filter === "paused"
+                                    ? "No paused subscriptions"
+                                    : "No rejected subscriptions"}
                     </Text>
                 </View>
             )}
@@ -232,6 +269,10 @@ const styles = StyleSheet.create({
         backgroundColor: colors.primary,
     },
 
+    filterActivePaused: {
+        backgroundColor: "#f59e0b",
+    },
+
     filterText: {
         color: "#374151",
         fontWeight: "600",
@@ -268,6 +309,11 @@ const styles = StyleSheet.create({
         borderLeftColor: "#ef4444",
     },
 
+    cardPaused: {
+        borderLeftWidth: 4,
+        borderLeftColor: "#f59e0b",
+    },
+
     headerRow: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -300,6 +346,10 @@ const styles = StyleSheet.create({
 
     badgeRejected: {
         backgroundColor: "#ef4444",
+    },
+
+    badgePaused: {
+        backgroundColor: "#f59e0b",
     },
 
     badgeText: {
@@ -394,5 +444,27 @@ const styles = StyleSheet.create({
     emptySubtitle: {
         color: "#6b7280",
         textAlign: "center",
+    },
+
+    pauseBox: {
+        marginTop: 10,
+        backgroundColor: "#fef3c7",
+        borderRadius: 8,
+        padding: 10,
+        borderLeftWidth: 3,
+        borderLeftColor: "#f59e0b",
+    },
+
+    pauseTitle: {
+        fontSize: 13,
+        fontWeight: "700",
+        color: "#92400e",
+        marginBottom: 4,
+    },
+
+    pauseMeta: {
+        fontSize: 12,
+        color: "#78350f",
+        marginTop: 2,
     },
 });

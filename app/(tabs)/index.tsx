@@ -1,18 +1,35 @@
 import { removeToken } from "@/utils/authStorage";
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { BackHandler, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import StatsCard from "@/components/StatsCard";
 import ActionItem from "@/components/ActionItem";
 import { useGetProfileQuery } from "@/services/userApi";
+import { useGetVendorOverviewQuery } from "@/services/subscriptionApi";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useCallback, useEffect } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function HomeScreen() {
   const router = useRouter();
+
+  // Exit the app on Android back press instead of navigating to auth screens
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        BackHandler.exitApp();
+        return true;
+      });
+      return () => sub.remove();
+    }, [])
+  );
   const { data } = useGetProfileQuery(undefined);
+  const { data: overviewData, isLoading: overviewLoading } = useGetVendorOverviewQuery(undefined);
 
   const businessName = data?.vendor?.businessName;
   const ownerName = data?.vendor?.user?.name;
+  const overview = overviewData?.overview;
+  const fmt = (val: number | undefined) => overviewLoading ? "—" : (val ?? "—");
 
   return (
     <View style={styles.container}>
@@ -26,34 +43,28 @@ export default function HomeScreen() {
               {businessName || 'Your Kitchen'}
             </Text>
           </View>
-          <View style={styles.iconCircle}>
+          <TouchableOpacity style={styles.iconCircle} onPress={() => router.push("/(tabs)/Profile")}>
             <Ionicons name="settings-outline" size={18} />
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.statsGrid}>
           <StatsCard
             title="Active Subscribers"
-            value="156"
-            meta="↑ 12% this week"
+            value={String(fmt(overview?.activeSubscribers))}
+            meta="Current active plans"
             variant="blue"
           />
           <StatsCard
-            title="Today's Orders"
-            value="89"
-            meta="↑ 5 from yesterday"
-            variant="green"
-          />
-          <StatsCard
-            title="Revenue (Week)"
-            value="₹45K"
-            meta="↑ 8% growth"
+            title="Pending Requests"
+            value={String(fmt(overview?.pendingRequests))}
+            meta="Awaiting your approval"
             variant="orange"
           />
           <StatsCard
             title="Avg Rating"
-            value="4.5"
-            meta="250+ reviews"
+            value={String(fmt(overview?.avgRating))}
+            meta={overview?.totalReviews ? `${overview.totalReviews} reviews` : "No reviews yet"}
             variant="purple"
           />
         </View>

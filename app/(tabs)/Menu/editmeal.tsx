@@ -43,6 +43,9 @@ const parseTime = (timeStr: string): Date => {
   return date;
 };
 
+const VALID_CHAR_REGEX = /^[a-zA-Z0-9\s,&.()-]*$/;
+const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+
 const EditBreakfast = () => {
   const router = useRouter();
 
@@ -65,6 +68,9 @@ const EditBreakfast = () => {
   const [itemsError, setItemsError] = useState('');
   const [addItemError, setAddItemError] = useState('');
   const [itemErrorIndexes, setItemErrorIndexes] = useState<number[]>([]);
+  const [descriptionError, setDescriptionError] = useState('');
+  const [timeError, setTimeError] = useState('');
+  const [sameForAllWeeks, setSameForAllWeeks] = useState(false);
 
   useEffect(() => {
     if (mealData) {
@@ -73,6 +79,7 @@ const EditBreakfast = () => {
       setStartTime(mealData.deliveryTime?.start || '');
       setEndTime(mealData.deliveryTime?.end || '');
       setDescription(mealData.description || '');
+      setSameForAllWeeks(!!mealData.sameForAllWeeks);
     }
   }, [mealData]);
 
@@ -98,12 +105,15 @@ const EditBreakfast = () => {
   };
 
   const updateItem = (index: number, value: string) => {
+    // Only allow valid characters
+    const filteredValue = value.split('').filter(char => VALID_CHAR_REGEX.test(char)).join('');
+    
     setMenuItems((prev) => {
       const updated = [...prev];
-      updated[index] = value;
+      updated[index] = filteredValue;
       return updated;
     });
-    if (value.trim() !== '') {
+    if (filteredValue.trim() !== '') {
       setAddItemError('');
       setItemErrorIndexes((prev) => prev.filter((i) => i !== index));
     }
@@ -114,9 +124,20 @@ const EditBreakfast = () => {
     if (Platform.OS === 'android') setPickerTarget(null);
     if (_event.type === 'dismissed') { setPickerTarget(null); return; }
     if (selectedDate) {
-      const formatted = formatTime(selectedDate);
-      if (pickerTarget === 'start') setStartTime(formatted);
-      else if (pickerTarget === 'end') setEndTime(formatted);
+      let dateToUse = selectedDate;
+      // Breakfast is AM-only: if a PM hour was picked, shift it back to AM
+      if (meal === 'breakfast' && selectedDate.getHours() >= 12) {
+        dateToUse = new Date(selectedDate);
+        dateToUse.setHours(selectedDate.getHours() - 12);
+      }
+      const formatted = formatTime(dateToUse);
+      if (pickerTarget === 'start') {
+        setStartTime(formatted);
+        if (endTime) setTimeError('');
+      } else if (pickerTarget === 'end') {
+        setEndTime(formatted);
+        if (startTime) setTimeError('');
+      }
     }
   };
 
@@ -130,6 +151,12 @@ const EditBreakfast = () => {
     if (!mealName.trim()) {
       setMealNameError('Meal name is required');
       hasError = true;
+    } else if (mealName.trim().length < 3) {
+      setMealNameError('Meal name must be at least 3 characters');
+      hasError = true;
+    } else if (mealName.trim().length > 50) {
+      setMealNameError('Meal name must not exceed 50 characters');
+      hasError = true;
     } else {
       setMealNameError('');
     }
@@ -137,6 +164,16 @@ const EditBreakfast = () => {
     const emptyIndexes = menuItems.reduce<number[]>((acc, item, i) => {
       if (item.trim() === '') acc.push(i);
       return acc;
+    }, []);
+
+    const tooShortIndexes = menuItems.reduce<number[]>((acc, item, i) => {
+        if (item.trim().length > 0 && item.trim().length < 2) acc.push(i);
+        return acc;
+    }, []);
+
+    const tooLongIndexes = menuItems.reduce<number[]>((acc, item, i) => {
+        if (item.trim().length > 50) acc.push(i);
+        return acc;
     }, []);
 
     if (menuItems.length === 0 || menuItems.every((i) => i.trim() === '')) {
@@ -147,30 +184,74 @@ const EditBreakfast = () => {
       setAddItemError('Please enter the item first');
       setItemErrorIndexes(emptyIndexes);
       hasError = true;
+    } else if (tooShortIndexes.length > 0) {
+        setAddItemError('Items must be at least 2 characters');
+        setItemErrorIndexes(tooShortIndexes);
+        hasError = true;
+    } else if (tooLongIndexes.length > 0) {
+        setAddItemError('Items must not exceed 50 characters');
+        setItemErrorIndexes(tooLongIndexes);
+        hasError = true;
     } else {
       setItemsError('');
       setAddItemError('');
       setItemErrorIndexes([]);
     }
 
+    if (!startTime || !endTime) {
+        setTimeError('Delivery start and end times are required');
+        hasError = true;
+    } else {
+        setTimeError('');
+    }
+
+    if (!description.trim()) {
+        setDescriptionError('Description is required');
+        hasError = true;
+    } else if (description.length > 200) {
+        setDescriptionError('Description must not exceed 200 characters');
+        hasError = true;
+    } else {
+        setDescriptionError('');
+    }
+
     if (hasError) return;
 
-    const menuData = data?.menu;
-
-    const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const menuData = data?.menu || {};
     const updatedMenu: Record<string, any> = {};
+
     DAY_KEYS.forEach((d) => {
-      updatedMenu[d] = d === day
-        ? {
-          ...menuData?.[d],
+      // Start with a copy of existing day data
+      const existingDayData = menuData[d] || {};
+      
+      if (sameForAllWeeks) {
+        // Sync logic: Update timing for the SAME meal type across ALL days
+        updatedMenu[d] = {
+          ...existingDayData,
+          [meal]: {
+            ...existingDayData[meal],
+            // Preserve other fields if it's NOT the current day/meal being edited
+            ...(d === day ? { mealName, items: menuItems.filter(Boolean), description } : {}),
+            deliveryTime: { start: startTime, end: endTime },
+            sameForAllWeeks: true,
+          },
+        };
+      } else if (d === day) {
+        // Single update logic: Only update the specific day and meal being edited
+        updatedMenu[d] = {
+          ...existingDayData,
           [meal]: {
             mealName,
             items: menuItems.filter(Boolean),
             deliveryTime: { start: startTime, end: endTime },
             description,
+            sameForAllWeeks: false,
           },
-        }
-        : menuData?.[d];
+        };
+      } else {
+        // No change for other days
+        updatedMenu[d] = existingDayData;
+      }
     });
 
     try {
@@ -211,7 +292,11 @@ const EditBreakfast = () => {
         style={[styles.input, mealNameError ? styles.inputError : null]}
         placeholder={`e.g. ${capitalize(day)} Special ${capitalize(meal)}`}
         value={mealName}
-        onChangeText={(text) => { setMealName(text); if (text.trim()) setMealNameError(''); }}
+        onChangeText={(text) => { 
+            const filtered = text.split('').filter(char => VALID_CHAR_REGEX.test(char)).join('');
+            setMealName(filtered); 
+            if (filtered.trim()) setMealNameError(''); 
+        }}
       />
       {mealNameError ? <Text style={styles.errorText}>{mealNameError}</Text> : null}
 
@@ -242,7 +327,7 @@ const EditBreakfast = () => {
       <View style={styles.row}>
         {/* Start time button */}
         <TouchableOpacity
-          style={styles.timeBtn}
+          style={[styles.timeBtn, timeError ? styles.inputError : null]}
           onPress={() => setPickerTarget('start')}
         >
           <Ionicons name="time-outline" size={16} color="#6B7280" />
@@ -253,7 +338,7 @@ const EditBreakfast = () => {
 
         {/* End time button */}
         <TouchableOpacity
-          style={styles.timeBtn}
+          style={[styles.timeBtn, timeError ? styles.inputError : null]}
           onPress={() => setPickerTarget('end')}
         >
           <Ionicons name="time-outline" size={16} color="#6B7280" />
@@ -262,6 +347,54 @@ const EditBreakfast = () => {
           </Text>
         </TouchableOpacity>
       </View>
+      {timeError ? <Text style={styles.errorText}>{timeError}</Text> : null}
+
+      {/* Same for all weeks checkbox */}
+      <TouchableOpacity
+        style={styles.checkboxContainer}
+        onPress={() => setSameForAllWeeks((prev) => !prev)}
+        activeOpacity={0.7}
+      >
+        <Ionicons
+          name={sameForAllWeeks ? "checkbox" : "square-outline"}
+          size={20}
+          color={sameForAllWeeks ? "#2563EB" : "#6B7280"}
+        />
+        <Text style={styles.checkboxLabel}>Same for all weeks</Text>
+      </TouchableOpacity>
+
+      {/* Synced days preview — visible only when checkbox is checked */}
+      {sameForAllWeeks && (
+        <View style={styles.syncPreview}>
+          <Text style={styles.syncPreviewTitle}>
+            Applied to all days ({capitalize(meal)}):
+          </Text>
+          {DAY_KEYS.map((d) => {
+            const isSource = d === day;
+            return (
+              <View key={d} style={styles.syncPreviewRow}>
+                <Text style={[styles.syncPreviewDay, isSource && styles.syncPreviewDaySource]}>
+                  {capitalize(d)}{isSource ? ' (this)' : ''}
+                </Text>
+                <View style={styles.syncPreviewTimes}>
+                  <View style={[styles.timeBtn, styles.timeBtnDisabled]}>
+                    <Ionicons name="time-outline" size={14} color="#9CA3AF" />
+                    <Text style={styles.timeBtnTextDisabled}>
+                      {startTime || '—'}
+                    </Text>
+                  </View>
+                  <View style={[styles.timeBtn, styles.timeBtnDisabled]}>
+                    <Ionicons name="time-outline" size={14} color="#9CA3AF" />
+                    <Text style={styles.timeBtnTextDisabled}>
+                      {endTime || '—'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       {/* Android: inline native picker */}
       {Platform.OS === 'android' && pickerTarget !== null && (
@@ -307,12 +440,17 @@ const EditBreakfast = () => {
       {/* Description */}
       <Text style={styles.label}>Description</Text>
       <TextInput
-        style={[styles.input, styles.textArea]}
+        style={[styles.input, styles.textArea, descriptionError ? styles.inputError : null]}
         value={description}
-        onChangeText={setDescription}
+        onChangeText={(text) => {
+            const filtered = text.split('').filter(char => VALID_CHAR_REGEX.test(char)).join('');
+            setDescription(filtered);
+            if (descriptionError) setDescriptionError('');
+        }}
         multiline
-        placeholder="Meal description"
+        placeholder="Meal description (max 200 characters)"
       />
+      {descriptionError ? <Text style={styles.errorText}>{descriptionError}</Text> : null}
 
       {/* Actions */}
       <View style={styles.footer}>
@@ -466,5 +604,59 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 24,
     marginBottom: 16,
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    gap: 8,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  timeBtnDisabled: {
+    backgroundColor: "#F3F4F6",
+    borderColor: "#E5E7EB",
+    opacity: 0.75,
+  },
+  timeBtnTextDisabled: {
+    fontSize: 13,
+    color: "#9CA3AF",
+  },
+  syncPreview: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 10,
+    backgroundColor: "#EFF6FF",
+    padding: 10,
+    gap: 6,
+  },
+  syncPreviewTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#1D4ED8",
+    marginBottom: 4,
+  },
+  syncPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  syncPreviewDay: {
+    fontSize: 12,
+    color: "#6B7280",
+    width: 80,
+  },
+  syncPreviewDaySource: {
+    color: "#1D4ED8",
+    fontWeight: "600",
+  },
+  syncPreviewTimes: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 6,
   },
 });

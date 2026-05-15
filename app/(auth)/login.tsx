@@ -3,7 +3,9 @@ import Button from '@/components/Button';
 import GoBack from '@/components/GoBack';
 import { colors } from '@/constants/theme';
 import { useLoginMutation } from '@/services/authApi';
+import { baseApi } from '@/services/baseApi';
 import { saveToken } from '@/utils/authStorage';
+import { useDispatch } from 'react-redux';
 import { AuthErrors, hasErrors, validateLoginForm } from '@/utils/authValidation';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,6 +22,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<AuthErrors>({});
 
+  const dispatch = useDispatch();
   const [login] = useLoginMutation();
 
   const handleLogin = async () => {
@@ -35,6 +38,7 @@ export default function LoginScreen() {
       }).unwrap();
 
       await saveToken(res.token);
+      dispatch(baseApi.util.resetApiState());
       Toast.show({ type: 'success', text1: 'Login successful' });
       router.replace('/(tabs)');
     } catch (err: any) {
