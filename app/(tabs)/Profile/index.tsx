@@ -3,8 +3,10 @@ import Button from "@/components/Button";
 import { useDeleteAccountMutation, useGetProfileQuery } from "@/services/userApi";
 import { useGetVendorReviewsQuery } from "@/services/reviewApi";
 import { removeToken } from "@/utils/authStorage";
+import { baseApi } from "@/services/baseApi";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { useDispatch } from "react-redux";
 import {
   ActivityIndicator,
   Modal,
@@ -34,6 +36,7 @@ function formatDate(iso: string) {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const { data, isLoading } = useGetProfileQuery(undefined);
   const [deleteAccount, { isLoading: isDeleting }] = useDeleteAccountMutation();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -54,6 +57,7 @@ export default function ProfileScreen() {
   const user = vendor?.user;
 
   const handleLogout = async () => {
+    dispatch(baseApi.util.resetApiState());
     await removeToken();
     router.replace("/welcome");
   };

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import MealCard from "@/components/MealCard";
 import { useGetWeeklyMenuQuery, useSaveWeeklyMenuMutation } from "@/services/vendorMenuApi";
@@ -53,7 +54,11 @@ export default function WeeklyScreen() {
   };
 
   if (isLoading) {
-    return <Text>Loading...</Text>;
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#1D4ED8" />
+      </View>
+    );
   }
 
 
@@ -123,6 +128,11 @@ export default function WeeklyScreen() {
 }
 
 const styles = StyleSheet.create({
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   container: {
     flex: 1,
     backgroundColor: "white",

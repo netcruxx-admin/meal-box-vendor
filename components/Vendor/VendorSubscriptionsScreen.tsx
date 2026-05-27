@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     Linking,
+    ActivityIndicator,
 } from "react-native";
 import {
     useGetVendorSubscriptionsQuery,
@@ -33,7 +34,11 @@ export default function VendorSubscriptionsScreen() {
     const [acceptSubscription] = useAcceptSubscriptionMutation();
     const [rejectSubscription] = useRejectSubscriptionMutation();
 
-    if (isLoading) return <Text>Loading...</Text>;
+    if (isLoading) return (
+        <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color="#1D4ED8" />
+        </View>
+    );
 
     const subs = data?.subscriptions || [];
     const filteredSubs = subs.filter((sub: any) => sub.status === filter);
@@ -186,13 +191,17 @@ export default function VendorSubscriptionsScreen() {
 
                             {/* ACTION ROW */}
                             <View style={styles.bottomRow}>
-                                {/* CALL BUTTON */}
-                                <TouchableOpacity
-                                    style={styles.callBtn}
-                                    onPress={() => handleCall(sub.user?.phone)}
-                                >
-                                    <Text style={styles.callText}>📞 Call</Text>
-                                </TouchableOpacity>
+                                {/* CALL BUTTON - only for accepted/paused */}
+                                {(sub.status === "accepted" || sub.status === "paused") ? (
+                                    <TouchableOpacity
+                                        style={styles.callBtn}
+                                        onPress={() => handleCall(sub.user?.phone)}
+                                    >
+                                        <Text style={styles.callText}>📞 Call</Text>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View />
+                                )}
 
                                 <Text style={styles.price}>₹{sub.finalPrice ?? sub.price}</Text>
                             </View>
@@ -239,6 +248,11 @@ export default function VendorSubscriptionsScreen() {
 }
 
 const styles = StyleSheet.create({
+    loaderContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
     container: {
         flex: 1,
         backgroundColor: "white",

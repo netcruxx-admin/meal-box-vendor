@@ -71,15 +71,22 @@ const EditBreakfast = () => {
   const [descriptionError, setDescriptionError] = useState('');
   const [timeError, setTimeError] = useState('');
   const [sameForAllWeeks, setSameForAllWeeks] = useState(false);
+  const [dayOverrides, setDayOverrides] = useState<Record<string, { start: string; end: string }>>({});
+  const [editingPreviewDay, setEditingPreviewDay] = useState<string | null>(null);
+  const [pickerDay, setPickerDay] = useState<string | null>(null);
+
+  const defaultMealName = `${capitalize(day)} ${capitalize(meal)}`;
 
   useEffect(() => {
     if (mealData) {
-      setMealName(mealData.mealName || '');
+      setMealName(mealData.mealName || defaultMealName);
       setMenuItems(mealData.items || []);
       setStartTime(mealData.deliveryTime?.start || '');
       setEndTime(mealData.deliveryTime?.end || '');
       setDescription(mealData.description || '');
       setSameForAllWeeks(!!mealData.sameForAllWeeks);
+    } else {
+      setMealName(defaultMealName);
     }
   }, [mealData]);
 
@@ -121,28 +128,41 @@ const EditBreakfast = () => {
 
   /* ---------- Time picker ---------- */
   const handleTimeChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
-    if (Platform.OS === 'android') setPickerTarget(null);
-    if (_event.type === 'dismissed') { setPickerTarget(null); return; }
+    if (Platform.OS === 'android') { setPickerTarget(null); setPickerDay(null); }
+    if (_event.type === 'dismissed') { setPickerTarget(null); setPickerDay(null); return; }
     if (selectedDate) {
       let dateToUse = selectedDate;
-      // Breakfast is AM-only: if a PM hour was picked, shift it back to AM
       if (meal === 'breakfast' && selectedDate.getHours() >= 12) {
         dateToUse = new Date(selectedDate);
         dateToUse.setHours(selectedDate.getHours() - 12);
       }
       const formatted = formatTime(dateToUse);
-      if (pickerTarget === 'start') {
-        setStartTime(formatted);
-        if (endTime) setTimeError('');
-      } else if (pickerTarget === 'end') {
-        setEndTime(formatted);
-        if (startTime) setTimeError('');
+      if (pickerDay) {
+        // Save to per-day override
+        setDayOverrides((prev) => ({
+          ...prev,
+          [pickerDay]: {
+            start: pickerTarget === 'start' ? formatted : (prev[pickerDay]?.start || startTime),
+            end: pickerTarget === 'end' ? formatted : (prev[pickerDay]?.end || endTime),
+          },
+        }));
+      } else {
+        if (pickerTarget === 'start') {
+          setStartTime(formatted);
+          if (endTime) setTimeError('');
+        } else if (pickerTarget === 'end') {
+          setEndTime(formatted);
+          if (startTime) setTimeError('');
+        }
       }
     }
   };
 
-  const pickerValue =
-    pickerTarget === 'start' ? parseTime(startTime) : parseTime(endTime);
+  const pickerValue = pickerDay
+    ? parseTime(pickerTarget === 'start'
+        ? (dayOverrides[pickerDay]?.start || startTime)
+        : (dayOverrides[pickerDay]?.end || endTime))
+    : (pickerTarget === 'start' ? parseTime(startTime) : parseTime(endTime));
 
   /* ---------- Save ---------- */
   const handleSave = async () => {
@@ -205,10 +225,7 @@ const EditBreakfast = () => {
         setTimeError('');
     }
 
-    if (!description.trim()) {
-        setDescriptionError('Description is required');
-        hasError = true;
-    } else if (description.length > 200) {
+    if (description.length > 200) {
         setDescriptionError('Description must not exceed 200 characters');
         hasError = true;
     } else {
@@ -225,14 +242,15 @@ const EditBreakfast = () => {
       const existingDayData = menuData[d] || {};
       
       if (sameForAllWeeks) {
-        // Sync logic: Update timing for the SAME meal type across ALL days
+        const override = dayOverrides[d];
+        const dayStart = override?.start || startTime;
+        const dayEnd = override?.end || endTime;
         updatedMenu[d] = {
           ...existingDayData,
           [meal]: {
             ...existingDayData[meal],
-            // Preserve other fields if it's NOT the current day/meal being edited
             ...(d === day ? { mealName, items: menuItems.filter(Boolean), description } : {}),
-            deliveryTime: { start: startTime, end: endTime },
+            deliveryTime: { start: dayStart, end: dayEnd },
             sameForAllWeeks: true,
           },
         };
@@ -371,24 +389,81 @@ const EditBreakfast = () => {
           </Text>
           {DAY_KEYS.map((d) => {
             const isSource = d === day;
+            const override = dayOverrides[d];
+            const rowStart = override?.start || startTime;
+            const rowEnd = override?.end || endTime;
+            const isEditing = editingPreviewDay === d;
+
             return (
-              <View key={d} style={styles.syncPreviewRow}>
-                <Text style={[styles.syncPreviewDay, isSource && styles.syncPreviewDaySource]}>
-                  {capitalize(d)}{isSource ? ' (this)' : ''}
-                </Text>
-                <View style={styles.syncPreviewTimes}>
-                  <View style={[styles.timeBtn, styles.timeBtnDisabled]}>
-                    <Ionicons name="time-outline" size={14} color="#9CA3AF" />
-                    <Text style={styles.timeBtnTextDisabled}>
-                      {startTime || '—'}
-                    </Text>
+              <View key={d}>
+                <View style={styles.syncPreviewRow}>
+                  <Text style={[styles.syncPreviewDay, isSource && styles.syncPreviewDaySource]}>
+                    {capitalize(d)}{isSource ? ' (this)' : ''}
+                  </Text>
+                  <View style={styles.syncPreviewTimes}>
+                    {isEditing ? (
+                      <>
+                        <TouchableOpacity
+                          style={[styles.timeBtn, styles.timeBtnEditable]}
+                          onPress={() => { setPickerTarget('start'); setPickerDay(d); }}
+                        >
+                          <Ionicons name="time-outline" size={14} color="#2563EB" />
+                          <Text style={styles.timeBtnTextEditable}>{rowStart || 'Start'}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.timeBtn, styles.timeBtnEditable]}
+                          onPress={() => { setPickerTarget('end'); setPickerDay(d); }}
+                        >
+                          <Ionicons name="time-outline" size={14} color="#2563EB" />
+                          <Text style={styles.timeBtnTextEditable}>{rowEnd || 'End'}</Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <>
+                        <View style={[styles.timeBtn, styles.timeBtnDisabled]}>
+                          <Ionicons name="time-outline" size={14} color={override ? "#2563EB" : "#9CA3AF"} />
+                          <Text style={[styles.timeBtnTextDisabled, override && styles.timeBtnTextOverride]}>
+                            {rowStart || '—'}
+                          </Text>
+                        </View>
+                        <View style={[styles.timeBtn, styles.timeBtnDisabled]}>
+                          <Ionicons name="time-outline" size={14} color={override ? "#2563EB" : "#9CA3AF"} />
+                          <Text style={[styles.timeBtnTextDisabled, override && styles.timeBtnTextOverride]}>
+                            {rowEnd || '—'}
+                          </Text>
+                        </View>
+                      </>
+                    )}
                   </View>
-                  <View style={[styles.timeBtn, styles.timeBtnDisabled]}>
-                    <Ionicons name="time-outline" size={14} color="#9CA3AF" />
-                    <Text style={styles.timeBtnTextDisabled}>
-                      {endTime || '—'}
-                    </Text>
-                  </View>
+                  {/* Edit / reset controls — not shown for the source day */}
+                  {!isSource && (
+                    <View style={styles.syncPreviewActions}>
+                      <TouchableOpacity
+                        onPress={() => setEditingPreviewDay(isEditing ? null : d)}
+                        style={styles.syncPreviewIconBtn}
+                      >
+                        <Ionicons
+                          name={isEditing ? "checkmark-circle" : "create-outline"}
+                          size={18}
+                          color={isEditing ? "#16A34A" : "#2563EB"}
+                        />
+                      </TouchableOpacity>
+                      {override && !isEditing && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setDayOverrides((prev) => {
+                              const next = { ...prev };
+                              delete next[d];
+                              return next;
+                            });
+                          }}
+                          style={styles.syncPreviewIconBtn}
+                        >
+                          <Ionicons name="refresh-outline" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
                 </View>
               </View>
             );
@@ -658,5 +733,27 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     gap: 6,
+  },
+  syncPreviewActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginLeft: 4,
+  },
+  syncPreviewIconBtn: {
+    padding: 2,
+  },
+  timeBtnEditable: {
+    borderColor: "#2563EB",
+    backgroundColor: "#EFF6FF",
+  },
+  timeBtnTextEditable: {
+    fontSize: 13,
+    color: "#2563EB",
+    fontWeight: "500",
+  },
+  timeBtnTextOverride: {
+    color: "#2563EB",
+    fontWeight: "500",
   },
 });

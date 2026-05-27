@@ -58,22 +58,23 @@ const MealRow = ({
   onChangePrice,
   disabled,
   error,
+  isLast,
 }: {
   mealType: MealType;
   price: string;
   onChangePrice: (v: string) => void;
   disabled: boolean;
   error?: string;
-}) => {
-  const base = Number(price) || 0;
-  return (
-    <View style={rowStyles.container}>
-      <Text style={rowStyles.label}>{MEAL_LABELS[mealType]}</Text>
-      <View style={rowStyles.inputWrapper}>
+  isLast?: boolean;
+}) => (
+  <View style={[rowStyles.container, !isLast && rowStyles.containerBorder]}>
+    <Text style={rowStyles.label}>{MEAL_LABELS[mealType]}</Text>
+    <View style={rowStyles.right}>
+      <View style={[rowStyles.inputWrapper, !!error && rowStyles.inputWrapperError, disabled && rowStyles.inputWrapperDisabled]}>
         <Text style={rowStyles.rupee}>₹</Text>
         <TextInput
-          style={[rowStyles.input, disabled && rowStyles.inputDisabled, !!error && rowStyles.inputError]}
-          placeholder="Set price"
+          style={[rowStyles.input, disabled && rowStyles.inputDisabled]}
+          placeholder="0"
           placeholderTextColor="#9CA3AF"
           value={price}
           onChangeText={(v) => onChangePrice(v.replace(/[^0-9]/g, ""))}
@@ -83,12 +84,23 @@ const MealRow = ({
       </View>
       {!!error && <Text style={rowStyles.errorText}>{error}</Text>}
     </View>
-  );
-};
+  </View>
+);
 
 const rowStyles = StyleSheet.create({
-  container: { marginBottom: 10 },
-  label: { fontSize: 13, color: "#374151", fontWeight: "500", marginBottom: 5 },
+  container: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  containerBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  label: { fontSize: 13, color: "#374151", fontWeight: "500", flex: 1, marginRight: 10 },
+  right: { alignItems: "flex-end" },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -97,66 +109,64 @@ const rowStyles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 10,
+    width: 110,
   },
+  inputWrapperError: { borderColor: "#EF4444" },
+  inputWrapperDisabled: { backgroundColor: "#F9FAFB" },
   rupee: { fontSize: 14, color: "#6B7280", marginRight: 4 },
-  input: { flex: 1, paddingVertical: 10, fontSize: 14, color: "#111827" },
-  inputDisabled: { backgroundColor: "#F9FAFB", color: "#9CA3AF" },
-  inputError: { borderColor: "#EF4444" },
-  errorText: { fontSize: 10, color: "#EF4444", marginTop: 2 },
+  input: { flex: 1, paddingVertical: 8, fontSize: 14, color: "#111827", textAlign: "right" },
+  inputDisabled: { color: "#9CA3AF" },
+  errorText: { fontSize: 10, color: "#EF4444", marginTop: 3 },
 });
 
 /* ---------- Duration Card ---------- */
 const DurationCard = ({
   title,
-  duration,
   durationLabel,
   prices,
   discount,
   onChangePrice,
   onChangeDiscount,
-  editing,
-  onToggleEdit,
   errors,
 }: {
   title: string;
-  duration: number;
   durationLabel: string;
   prices: MealPriceMap;
   discount: string;
   onChangePrice: (meal: MealType, v: string) => void;
   onChangeDiscount: (v: string) => void;
-  editing: boolean;
-  onToggleEdit: () => void;
   errors: Partial<Record<MealType | "discount", string>>;
 }) => {
   const discNum = Math.min(Math.max(Number(discount) || 0, 0), 100);
   const filledCount = ALL_MEALS.filter((m) => Number(prices[m]) > 0).length;
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  const toggleGroup = (label: string) =>
+    setOpenGroup((prev) => (prev === label ? null : label));
 
   return (
-    <View style={[styles.card, editing && styles.cardActive]}>
+    <View style={styles.card}>
       {/* Header */}
       <View style={styles.cardHeader}>
         <View>
           <Text style={styles.cardTitle}>{title}</Text>
-          <Text style={styles.cardSub}>{durationLabel} · {filledCount} combination{filledCount !== 1 ? "s" : ""} set</Text>
+          <Text style={styles.cardSub}>
+            {durationLabel} · {filledCount} combination{filledCount !== 1 ? "s" : ""} set
+          </Text>
         </View>
-        <TouchableOpacity onPress={onToggleEdit}>
-          <Text style={styles.editText}>{editing ? "Done" : "Edit"}</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Discount */}
       <View style={styles.discountRow}>
         <Text style={styles.discountLabel}>Global Discount %</Text>
-        <View style={styles.discountInputWrapper}>
+        <View style={[styles.discountInputWrapper, errors.discount ? styles.inputError : null]}>
           <TextInput
-            style={[styles.discountInput, !editing && styles.inputDisabled, errors.discount ? styles.inputError : null]}
+            style={styles.discountInput}
             value={discount}
             onChangeText={(v) => onChangeDiscount(v.replace(/[^0-9]/g, ""))}
             keyboardType="numeric"
             placeholder="0"
             placeholderTextColor="#9CA3AF"
-            editable={editing}
           />
           <Text style={styles.discountPct}>%</Text>
         </View>
@@ -165,21 +175,51 @@ const DurationCard = ({
       {errors.discount && <Text style={rowStyles.errorText}>{errors.discount}</Text>}
 
       {/* Meal Groups */}
-      {MEAL_GROUPS.map((group) => (
-        <View key={group.label} style={styles.group}>
-          <Text style={styles.groupLabel}>{group.label}</Text>
-          {group.meals.map((meal) => (
-            <MealRow
-              key={meal}
-              mealType={meal}
-              price={prices[meal]}
-              onChangePrice={(v) => onChangePrice(meal, v)}
-              disabled={!editing}
-              error={errors[meal]}
-            />
-          ))}
-        </View>
-      ))}
+      {MEAL_GROUPS.map((group) => {
+        const isOpen = openGroup === group.label;
+        const groupFilled = group.meals.filter((m) => Number(prices[m]) > 0).length;
+        return (
+          <View key={group.label} style={styles.group}>
+            <TouchableOpacity
+              style={[styles.groupHeader, isOpen && styles.groupHeaderOpen]}
+              onPress={() => toggleGroup(group.label)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.groupHeaderLeft}>
+                <Text style={[styles.groupLabel, isOpen && styles.groupLabelOpen]}>
+                  {group.label}
+                </Text>
+                {groupFilled > 0 && (
+                  <View style={styles.groupBadge}>
+                    <Text style={styles.groupBadgeText}>{groupFilled} set</Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons
+                name={isOpen ? "chevron-up" : "chevron-down"}
+                size={16}
+                color={isOpen ? "#2563EB" : "#9CA3AF"}
+              />
+            </TouchableOpacity>
+
+            {isOpen && (
+              <View>
+                {group.meals.map((meal, i) => (
+                  <MealRow
+                    key={meal}
+                    mealType={meal}
+                    price={prices[meal]}
+                    onChangePrice={(v) => onChangePrice(meal, v)}
+                    disabled={false}
+                    error={errors[meal]}
+                    isLast={i === group.meals.length - 1}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        );
+      })}
 
       <Text style={styles.hint}>Leave blank to not offer a combination to users.</Text>
     </View>
@@ -192,8 +232,6 @@ export default function PlansScreen() {
   const { data, isLoading } = useGetPlansQuery(undefined);
   const { data: menuData, isLoading: isMenuLoading } = useGetWeeklyMenuQuery(undefined);
   const [updatePlans, { isLoading: isUpdating }] = useUpdatePlansMutation();
-
-  const [editingCard, setEditingCard] = useState<"weekly" | "monthly" | null>(null);
 
   const [weeklyPrices, setWeeklyPrices] = useState<MealPriceMap>(emptyPrices());
   const [weeklyDiscount, setWeeklyDiscount] = useState("0");
@@ -345,7 +383,6 @@ export default function PlansScreen() {
 
       <DurationCard
         title="Weekly Plan"
-        duration={7}
         durationLabel="7 days"
         prices={weeklyPrices}
         discount={weeklyDiscount}
@@ -357,14 +394,11 @@ export default function PlansScreen() {
           setWeeklyDiscount(v);
           setErrors((e) => ({ ...e, weekly: { ...e.weekly, discount: undefined } }));
         }}
-        editing={editingCard === "weekly"}
-        onToggleEdit={() => setEditingCard(editingCard === "weekly" ? null : "weekly")}
         errors={errors.weekly}
       />
 
       <DurationCard
         title="Monthly Plan"
-        duration={30}
         durationLabel="30 days"
         prices={monthlyPrices}
         discount={monthlyDiscount}
@@ -376,8 +410,6 @@ export default function PlansScreen() {
           setMonthlyDiscount(v);
           setErrors((e) => ({ ...e, monthly: { ...e.monthly, discount: undefined } }));
         }}
-        editing={editingCard === "monthly"}
-        onToggleEdit={() => setEditingCard(editingCard === "monthly" ? null : "monthly")}
         errors={errors.monthly}
       />
 
@@ -386,7 +418,8 @@ export default function PlansScreen() {
         variant="fill"
         fullWidth
         onPress={handleUpdate}
-        disabled={isUpdating || !menuIsComplete}
+        // disabled={isUpdating || !menuIsComplete}                            
+        disabled={isUpdating}
       />
     </ScreenScrollView>
   );
@@ -405,11 +438,6 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     marginBottom: 16,
   },
-  cardActive: {
-    borderWidth: 2,
-    borderColor: "#2563EB",
-    backgroundColor: "#EFF6FF",
-  },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -418,15 +446,20 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
   cardSub: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-  editText: { fontSize: 13, color: "#2563EB", fontWeight: "600" },
 
   discountRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 4,
   },
-  discountLabel: { fontSize: 13, color: "#374151", fontWeight: "500" },
+  discountLabel: { fontSize: 13, color: "#374151", fontWeight: "600" },
   discountInputWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -437,20 +470,56 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     width: 90,
   },
-  discountInput: { flex: 1, paddingVertical: 8, fontSize: 14, color: "#111827" },
-  discountPct: { fontSize: 14, color: "#6B7280" },
-  discountHint: { fontSize: 11, color: "#16A34A", marginBottom: 8 },
+  discountInput: { flex: 1, paddingVertical: 7, fontSize: 14, color: "#111827", textAlign: "right" },
+  discountPct: { fontSize: 14, color: "#6B7280", marginLeft: 4 },
+  discountHint: { fontSize: 11, color: "#16A34A", marginBottom: 6 },
   inputDisabled: { backgroundColor: "#F9FAFB", color: "#9CA3AF" },
   inputError: { borderColor: "#EF4444" },
 
-  group: { marginTop: 14 },
+  group: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+  },
+  groupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    backgroundColor: "#F9FAFB",
+  },
+  groupHeaderOpen: {
+    backgroundColor: "#EFF6FF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#DBEAFE",
+  },
+  groupHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   groupLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  groupLabelOpen: {
+    color: "#2563EB",
+  },
+  groupBadge: {
+    backgroundColor: "#DCFCE7",
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  groupBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#16A34A",
   },
 
   hint: { fontSize: 11, color: "#9CA3AF", marginTop: 10, textAlign: "center" },

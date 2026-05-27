@@ -75,10 +75,10 @@ function validateForm(form: any): FormErrors {
     errors.line1 = 'Address contains invalid characters';
   }
 
-  // Address Line 2 (optional)
+  // Landmark (optional)
   if (form.address.line2) {
     if (form.address.line2.length > 100) {
-      errors.line2 = 'Address Line 2 must not exceed 100 characters';
+      errors.line2 = 'Landmark must not exceed 100 characters';
     } else if (!ADDRESS_REGEX.test(form.address.line2)) {
       errors.line2 = 'Address contains invalid characters';
     }
@@ -298,7 +298,7 @@ export default function EditProfileScreen() {
         />
 
         <InputField
-          label="Address Line 2 (Optional)"
+          label="Landmark (Optional)"
           value={form.address.line2}
           onChangeText={(v: string) => handleAddressChange('line2', v)}
           placeholder="e.g. Near City Mall"
